@@ -23,5 +23,8 @@
     "build": "bunx tsc",
     "prepublishOnly": "bun run build"
   },
-  "types": "dist/index.d.ts"
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
 }
