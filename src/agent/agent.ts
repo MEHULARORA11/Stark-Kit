@@ -45,6 +45,7 @@
 import type { Provider } from "../provider/provider.js";
 import type { IExecutableTool } from "../types/tools.js";
 import type {IAgentOptions} from '../types/agent.js'
+import type {IMessage} from '../types/message.js'
 
 export class Agent {
   private provider: Provider;
@@ -60,8 +61,13 @@ export class Agent {
     });
   }
 
-  async run(userMessage: string) {
-    this.history.push({ role: "user", content: userMessage });
+  async run(userMessage: IMessage[] | string) {
+
+    if(typeof(userMessage) !== 'string') {
+         this.history.push(...userMessage);
+    }
+
+   
 
     // ✨ The Infinite Agent Loop
     while (true) {
