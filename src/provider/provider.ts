@@ -2,11 +2,13 @@ import type { IExecutableTool } from "../types/tools.js";
 
 export interface AIResponse {
   content: string | null;
-  toolCalls?: { name: string; args: unknown }[];
+  // 👉 1. Add id: string here!
+  toolCalls?: { id: string; name: string; args: unknown }[];
+  // 👉 2. Add rawMessage so we can save the exact native OpenAI format
+  rawMessage?: any; 
 }
 
 export interface Provider {
   name: string;
-  // Every provider must implement this generic chat function
   chat(messages: any[], tools: IExecutableTool[]): Promise<AIResponse>;
 }
