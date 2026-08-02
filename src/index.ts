@@ -1,9 +1,20 @@
-import { Agent } from "./agent/agent.js";
-import { OpenAIProvider } from "./provider/openai/OpenAIProvider.js";
-import {defineTool} from './types/tools.js'
-import {z} from 'zod'
-import axios from "axios";
+// src/index.ts
+import  { Agent } from "./agent/agent.js";
+import  { run } from "./agent/run.js";
 
+
+// import  Providers
+import  { OpenAIProvider } from "./provider/openai/OpenAIProvider.js";
+
+// import  Types
+import  type { IAgentOptions } from "./types/agent.js";
+import  type { IMessage } from "./types/message.js";
+import  type { IExecutableTool } from "./types/tools.js";
+import z from "zod";
+import axios from "axios";
+import { defineTool } from "./agent/tool.js";
+
+const provider = new OpenAIProvider
 
 const weatherTool = defineTool({
   name: "weatherTool",
@@ -19,13 +30,17 @@ const weatherTool = defineTool({
     }
 })
 
-const provider = new OpenAIProvider();
 const agent = new Agent({
-    name:"",
-    instructions:"",
+    name:"weather agent",
     provider,
+    instructions:"",
     tools:[weatherTool]
-});
+})
 
-const response = await agent.run("What is the weather in Agra and delhi and goa?");
-console.log(response)
+const response = await run({
+    agent,
+    messages:"what is the weather of agra and delhi , pune and goa? ?",
+    maxSteps:10
+})
+
+console.log(response.content)

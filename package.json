@@ -25,6 +25,10 @@
   },
   "types": "dist/index.d.ts",
   "dependencies": {
-    "dotenv": "^17.4.2"
+    "axios": "^1.19.0",
+    "dotenv": "^17.4.2",
+    "openai": "^7.3.0",
+    "zod": "^4.4.3",
+    "zod-to-json-schema": "^3.25.2"
   }
 }
