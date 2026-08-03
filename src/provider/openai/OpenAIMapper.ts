@@ -1,10 +1,10 @@
 // src/providers/openai/OpenAIMapper.ts
 import { zodToJsonSchema } from "zod-to-json-schema";
-import type { IExecutableTool } from "../../types/tools.js";
+import type { IToolOptions } from "../../types/tools.js";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 
 export class OpenAIMapper {
-  static mapTools(tools: IExecutableTool[]): ChatCompletionTool[] {
+  static mapTools(tools: IToolOptions[]): ChatCompletionTool[] {
     return tools.map(tool => {
       // 1. Translate Zod to JSON Schema
       const jsonSchema = zodToJsonSchema(tool.parameters as any) as any;

@@ -1,13 +1,13 @@
 // src/agent/Agent.ts
 import type { Provider } from "../provider/provider.js";
-import type { IExecutableTool } from "../types/tools.js";
+import type { IToolOptions } from "../types/tools.js";
 import type { IAgentOptions } from "../types/agent.js";
 
 export class Agent {
   public name: string;
   public instructions: string;
   public provider: Provider;
-  public tools: IExecutableTool[];
+  public tools: IToolOptions[];
   public maxSteps: number;
   public temperature?: number;
 

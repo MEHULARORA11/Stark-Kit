@@ -1,4 +1,4 @@
-import type { IExecutableTool } from "../types/tools.js";
+import type { IToolOptions } from "../types/tools.js";
 
 export interface AIResponse {
   content: string | null;
@@ -10,5 +10,5 @@ export interface AIResponse {
 
 export interface Provider {
   name: string;
-  chat(messages: any[], tools: IExecutableTool[]): Promise<AIResponse>;
+  chat(messages: any[], tools: IToolOptions[]): Promise<AIResponse>;
 }

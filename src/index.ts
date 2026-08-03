@@ -9,12 +9,13 @@ import  { OpenAIProvider } from "./provider/openai/OpenAIProvider.js";
 // import  Types
 import  type { IAgentOptions } from "./types/agent.js";
 import  type { IMessage } from "./types/message.js";
-import  type { IExecutableTool } from "./types/tools.js";
+import  type { IToolOptions } from "./types/tools.js";
 import z from "zod";
 import axios from "axios";
 import { defineTool } from "./agent/tool.js";
 
 const provider = new OpenAIProvider
+
 
 const weatherTool = defineTool({
   name: "weatherTool",
@@ -44,3 +45,5 @@ const response = await run({
 })
 
 console.log(response.content)
+console.log(provider.name)
+// console.log(provider.chat())

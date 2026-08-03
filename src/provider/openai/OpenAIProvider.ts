@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { Provider } from "../provider.js";
-import type { IExecutableTool } from "../../types/tools.js";
+import type { IToolOptions } from "../../types/tools.js";
 import { OpenAIMapper } from "./OpenAIMapper.js";
 import {config} from '../../utils/config.js'
 
@@ -10,7 +10,7 @@ export class OpenAIProvider implements Provider {
     apiKey:config.OPENAI_API_KEY
   });
 
-  async chat(messages: any[], tools: IExecutableTool[]): Promise<any> {
+  async chat(messages: any[], tools: IToolOptions[]): Promise<any> {
     const openaiTools = OpenAIMapper.mapTools(tools);
 
     const response = await this.client.chat.completions.create({

@@ -1,13 +1,13 @@
 import  {z} from "zod";
-import type { IExecutableTool, IToolOptions } from "../types/tools";
+import type { IToolOptions } from "../types/tools";
 
 // 3. Factory function
 export function defineTool<T extends z.ZodType, R = any>(
   tool: IToolOptions<T, R>
-): IExecutableTool<T, R> {
+): IToolOptions<T, R> {
   return {
     ...tool,
-    execute: async (rawArgs: unknown): Promise<any> => {
+    execute: async (rawArgs: z.infer<T>): Promise<any> => {
       
       // 1. Use safeParse instead of parse!
       const parsed = tool.parameters.safeParse(rawArgs);
