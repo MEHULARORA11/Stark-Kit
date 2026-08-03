@@ -10,6 +10,7 @@ export class Agent {
   public tools: IToolOptions[];
   public maxSteps: number;
   public temperature?: number;
+  public model?: string;
 
   constructor(options: IAgentOptions) {
     this.name = options.name || "DefaultAgent";
@@ -18,5 +19,6 @@ export class Agent {
     this.tools = options.tools || [];
     this.maxSteps = options.maxSteps ?? 10;
     this.temperature = options.temperature;
+    this.model = options.model;
   }
 }
