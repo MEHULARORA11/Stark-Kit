@@ -1,45 +1,52 @@
+// src/provider/openai/OpenAIProvider.ts
 import OpenAI from "openai";
-import type { Provider } from "../provider.js";
+import type { Provider, AIResponse, ChatOptions } from "../provider.js";
 import type { IToolOptions } from "../../types/tools.js";
+import type { CanonicalMessage } from "../../types/message.js";
 import { OpenAIMapper } from "./OpenAIMapper.js";
-import {config} from '../../utils/config.js'
+import { config } from "../../utils/config.js";
+
+export interface OpenAIProviderOptions {
+  /** Pass explicitly for BYOK / multi-tenant use instead of relying on the global config. */
+  apiKey?: string;
+  defaultModel?: string;
+}
 
 export class OpenAIProvider implements Provider {
   name = "openai";
-  private client = new OpenAI({
-    apiKey:config.OPENAI_API_KEY
-  });
+  defaultModel: string;
+  private client: OpenAI;
 
-  async chat(messages: any[], tools: IToolOptions[]): Promise<any> {
+  constructor(options: OpenAIProviderOptions = {}) {
+    const apiKey = options.apiKey ?? config.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error(
+        "OpenAIProvider: no API key available. Pass { apiKey } explicitly or set OPENAI_API_KEY."
+      );
+    }
+
+    this.client = new OpenAI({ apiKey });
+    this.defaultModel = options.defaultModel ?? "gpt-4o";
+  }
+
+  async chat(
+    history: CanonicalMessage[],
+    tools: IToolOptions[],
+    options: ChatOptions = {}
+  ): Promise<AIResponse> {
     const openaiTools = OpenAIMapper.mapTools(tools);
+    const openaiMessages = OpenAIMapper.toOpenAIMessages(history);
 
     const response = await this.client.chat.completions.create({
-      model: "gpt-4o", // Ensure you are using gpt-4o!
-      messages: messages,
+      model: options.model ?? this.defaultModel,
+      temperature: options.temperature,
+      max_tokens: options.maxTokens,
+      messages: openaiMessages,
       tools: openaiTools.length > 0 ? openaiTools : undefined,
     });
 
     const choice = response.choices[0]?.message;
-
-    // We now capture the `id` so we can give it back to OpenAI later
-    const parsedToolCalls: { id: string, name: string; args: any }[] = [];
-    
-    if (choice?.tool_calls) {
-      for (const tc of choice.tool_calls) {
-        if (tc.type === "function") {
-          parsedToolCalls.push({
-            id: tc.id, // 👉 CAPTURING THE ID!
-            name: tc.function.name,
-            args: JSON.parse(tc.function.arguments)
-          });
-        }
-      }
-    }
-
-    return {
-      content: choice?.content || null,
-      toolCalls: parsedToolCalls.length > 0 ? parsedToolCalls : undefined,
-      rawMessage: choice // 👉 We return the exact assistant message so the Agent can save it
-    };
+    return OpenAIMapper.fromOpenAIChoice(choice);
   }
 }
