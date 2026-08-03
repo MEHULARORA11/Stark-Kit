@@ -9,4 +9,6 @@ export interface IAgentOptions {
   tools?: IToolOptions[];
   maxSteps?: number;    // Prevents infinite while-loops
   temperature?: number;
+  /** Overrides the provider's defaultModel for this agent. */
+  model?: string;
 }
