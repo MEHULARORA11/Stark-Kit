@@ -46,40 +46,4 @@ export interface IToolOptions<TParameters extends z.ZodType = z.ZodType, R = any
    * human-in-the-loop approval.
    */
   requiresApproval?: boolean;
-
-  /**
-   * Optional Zod schema describing the tool's output structure.
-   * When provided, the JSON Schema representation is appended to
-   * the tool's description so the LLM knows the exact shape of
-   * the data it will receive back. `defineTool` also validates
-   * the tool's return value against this schema at runtime.
-   */
-  outputType?: z.ZodType;
-}
-
-// ── Output Schema Helper ──────────────────────────────────────────────
-/**
- * Builds the effective description for a tool. If `outputType` is set,
- * the Zod schema is converted to JSON Schema and appended to the
- * description so the LLM knows the expected output structure.
- *
- * All Mappers should call this instead of reading `tool.description`
- * directly, so the output schema is always communicated to the LLM.
- */
-export function buildToolDescription(tool: IToolOptions): string {
-  if (!tool.outputType) return tool.description;
-
-  try {
-    const outputJsonSchema = z.toJSONSchema(tool.outputType as any) as any;
-    if (outputJsonSchema.$schema) delete outputJsonSchema.$schema;
-
-    return (
-      tool.description +
-      `\n\nThis tool returns data conforming to the following JSON Schema:\n` +
-      JSON.stringify(outputJsonSchema, null, 2)
-    );
-  } catch {
-    // If schema conversion fails, fall back to the raw description
-    return tool.description;
-  }
 }

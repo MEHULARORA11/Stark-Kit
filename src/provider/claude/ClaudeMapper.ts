@@ -1,4 +1,4 @@
-import { buildToolDescription, type IToolOptions } from "../../types/tools.js";
+import type { IToolOptions } from "../../types/tools.js";
 import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
 import z from "zod";
@@ -19,7 +19,7 @@ export class ClaudeMapper {
 
       return {
         name: tool.name,
-        description: buildToolDescription(tool),
+        description: tool.description,
         input_schema: safeParameters,
       };
     });

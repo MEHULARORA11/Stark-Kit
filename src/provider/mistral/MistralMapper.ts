@@ -1,5 +1,5 @@
 // src/provider/mistral/MistralMapper.ts
-import { buildToolDescription, type IToolOptions } from "../../types/tools.js";
+import type { IToolOptions } from "../../types/tools.js";
 import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
 import z from "zod";
@@ -22,7 +22,7 @@ export class MistralMapper {
         type: "function" as const,
         function: {
           name: tool.name,
-          description: buildToolDescription(tool),
+          description: tool.description,
           parameters: safeParameters,
         },
       };

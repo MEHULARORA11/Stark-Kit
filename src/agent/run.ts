@@ -29,6 +29,8 @@ export interface RunResult {
   history: CanonicalMessage[];
   /** The agent that produced the final answer (may differ from input after handoffs). */
   agent: Agent;
+  /** The parsed structured output, if the Agent had an outputType defined. */
+  finalOutput?: any;
 }
 
 // ── HITL Types ────────────────────────────────────────────────────────
@@ -236,11 +238,12 @@ export async function* runStream({
 
     // ── Call the provider (streaming or fallback) ──
     let aiResponse: AIResponse;
+    const effectiveTools = _getEffectiveTools(activeAgent);
 
     if (activeAgent.provider.chatStream) {
       // Streaming path — yield chunks to the caller in real-time
       let assembledResponse: AIResponse | undefined;
-      const stream = activeAgent.provider.chatStream(effectiveHistory, activeAgent.tools, chatOptions);
+      const stream = activeAgent.provider.chatStream(effectiveHistory, effectiveTools, chatOptions);
 
       for await (const chunk of stream) {
         yield { type: "chunk", chunk };
@@ -252,7 +255,7 @@ export async function* runStream({
       aiResponse = assembledResponse ?? { content: null };
     } else {
       // Non-streaming fallback
-      aiResponse = await activeAgent.provider.chat(effectiveHistory, activeAgent.tools, chatOptions);
+      aiResponse = await activeAgent.provider.chat(effectiveHistory, effectiveTools, chatOptions);
     }
 
     // Store the canonical assistant turn
@@ -285,7 +288,36 @@ export async function* runStream({
     let handoffOccurred = false;
 
     for (const toolCall of aiResponse.toolCalls) {
-      const tool = activeAgent.tools.find((t) => t.name === toolCall.name);
+      // ── Structured Output Intercept ──
+      if (activeAgent.outputType && toolCall.name === "submit_final_output") {
+        const parsed = activeAgent.outputType.safeParse(toolCall.args);
+        if (parsed.success) {
+          const finalResult: RunResult = {
+            status: "complete",
+            content: aiResponse.content,
+            history,
+            agent: activeAgent,
+            finalOutput: parsed.data,
+          };
+          yield { type: "tool_start", toolName: toolCall.name, args: toolCall.args };
+          yield { type: "tool_end", toolName: toolCall.name, result: "Final output submitted.", isError: false };
+          yield { type: "done", result: finalResult };
+          return;
+        } else {
+          yield { type: "tool_start", toolName: toolCall.name, args: toolCall.args };
+          const errMsg = `Validation Failed for final output: ${parsed.error.message}`;
+          processedResults.push({
+            toolCallId: toolCall.id,
+            toolName: toolCall.name,
+            content: errMsg,
+            isError: true,
+          });
+          yield { type: "tool_end", toolName: toolCall.name, result: errMsg, isError: true };
+          continue;
+        }
+      }
+
+      const tool = _getEffectiveTools(activeAgent).find((t) => t.name === toolCall.name);
 
       // HITL check
       if (tool?.requiresApproval) {
@@ -444,9 +476,10 @@ async function _runLoop(
     }
 
     // ── Call the provider ─────────────────────────────────────────
+    const effectiveTools = _getEffectiveTools(activeAgent);
     const aiResponse = await activeAgent.provider.chat(
       effectiveHistory,
-      activeAgent.tools,
+      effectiveTools,
       chatOptions
     );
 
@@ -480,7 +513,29 @@ async function _runLoop(
     }> = [];
 
     for (const toolCall of aiResponse.toolCalls) {
-      const tool = activeAgent.tools.find((t) => t.name === toolCall.name);
+      // ── Structured Output Intercept ──
+      if (activeAgent.outputType && toolCall.name === "submit_final_output") {
+        const parsed = activeAgent.outputType.safeParse(toolCall.args);
+        if (parsed.success) {
+          return {
+            status: "complete",
+            content: aiResponse.content,
+            history,
+            agent: activeAgent,
+            finalOutput: parsed.data,
+          };
+        } else {
+          processedResults.push({
+            toolCallId: toolCall.id,
+            toolName: toolCall.name,
+            content: `Validation Failed for final output: ${parsed.error.message}`,
+            isError: true,
+          });
+          continue;
+        }
+      }
+
+      const tool = _getEffectiveTools(activeAgent).find((t) => t.name === toolCall.name);
 
       // ── HITL check ──
       if (tool?.requiresApproval) {
@@ -739,4 +794,21 @@ async function _executeTool(
   }
 
   return { content, isError, rawResult };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Helpers
+// ═══════════════════════════════════════════════════════════════════════
+
+function _getEffectiveTools(agent: Agent): IToolOptions[] {
+  const tools = [...agent.tools];
+  if (agent.outputType) {
+    tools.push({
+      name: "submit_final_output",
+      description: "Submit the final structured output of your task. You MUST call this tool when you have completed your objective and have the final answer.",
+      parameters: agent.outputType,
+      execute: async (args) => args,
+    });
+  }
+  return tools;
 }

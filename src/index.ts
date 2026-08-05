@@ -13,7 +13,7 @@ export type {
 
 // ── Types: Tools ──────────────────────────────────────────────────────
 export type { IToolOptions, ToolResult } from "./types/tools.js";
-export { isToolResult, buildToolDescription } from "./types/tools.js";
+export { isToolResult } from "./types/tools.js";
 
 // ── Types: Agent ──────────────────────────────────────────────────────
 export type { IAgentOptions, AgentHooks } from "./types/agent.js";

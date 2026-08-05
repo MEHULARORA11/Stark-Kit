@@ -2,6 +2,7 @@
 import type { Provider } from "../provider/provider.js";
 import type { IToolOptions } from "./tools.js";
 import type { CanonicalMessage } from "./message.js";
+import type { z } from "zod";
 
 // ── Guardrails: Lifecycle Hooks ───────────────────────────────────────
 /**
@@ -54,4 +55,6 @@ export interface IAgentOptions {
   model?: string;
   /** Lifecycle hooks for guardrails / validation. */
   hooks?: AgentHooks;
+  /** Enforces a structured JSON output schema for the Agent's final response. */
+  outputType?: z.ZodType;
 }

@@ -2,6 +2,7 @@
 import type { Provider } from "../provider/provider.js";
 import type { IToolOptions } from "../types/tools.js";
 import type { IAgentOptions, AgentHooks } from "../types/agent.js";
+import type { z } from "zod";
 
 export class Agent {
   public name: string;
@@ -12,6 +13,7 @@ export class Agent {
   public temperature?: number;
   public model?: string; // means now it's type is string | undefined
   public hooks: AgentHooks;
+  public outputType?: z.ZodType;
 
   constructor(options: IAgentOptions) {
     this.name = options.name || "DefaultAgent";
@@ -22,5 +24,6 @@ export class Agent {
     this.temperature = options.temperature;
     this.model = options.model;
     this.hooks = options.hooks ?? {};
+    this.outputType = options.outputType;
   }
 }
