@@ -1,15 +1,41 @@
-import type { CanonicalMessage } from "../../types/message.js";
 import type { IToolOptions } from "../../types/tools.js";
 import type { AIResponse } from "../provider.js";
+import type { CanonicalMessage } from "../../types/message.js";
+import z from "zod";
 
 export class GeminiMapper {
-  static toGeminiContents(messages: CanonicalMessage[]): { systemInstruction?: string; contents: any[] } {
+  static mapTools(tools: IToolOptions[]): any[] {
+    if (!tools || tools.length === 0) return [];
+    
+    const functionDeclarations = tools.map((tool) => {
+      const jsonSchema = z.toJSONSchema(tool.parameters as any) as any;
+
+      if (jsonSchema.$schema) {
+        delete jsonSchema.$schema;
+      }
+
+      const safeParameters =
+        jsonSchema.type === "object"
+          ? jsonSchema
+          : { type: "object", properties: {} };
+
+      return {
+        name: tool.name,
+        description: tool.description,
+        parameters: safeParameters,
+      };
+    });
+
+    return [{ functionDeclarations }];
+  }
+
+  static toGeminiContents(history: CanonicalMessage[]): { systemInstruction?: string; contents: any[] } {
     let systemInstruction: string | undefined;
     const contents: any[] = [];
 
-    for (const msg of messages) {
-      if (msg.role === "system") {
-        systemInstruction = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+    for (const msg of history) {
+      if (msg.role === "system" || msg.role === "developer") {
+        systemInstruction = systemInstruction ? `${systemInstruction}\n${msg.content}` : String(msg.content);
         continue;
       }
 
@@ -19,7 +45,6 @@ export class GeminiMapper {
           parts: [
             {
               functionResponse: {
-                // Gemini requires a name here. We fallback to toolCallId if name is missing in msg
                 name: (msg as any).name || msg.result.toolCallId || "tool",
                 response: { output: msg.result.content },
               },
@@ -53,21 +78,8 @@ export class GeminiMapper {
     return { systemInstruction, contents };
   }
 
-  static toGeminiTools(tools: IToolOptions[]): any[] {
-    if (!tools || tools.length === 0) return [];
-    return [
-      {
-        functionDeclarations: tools.map((tool) => ({
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.parameters,
-        })),
-      },
-    ];
-  }
-
   static fromGeminiResponse(response: any): AIResponse {
-    const candidate = response.response.candidates?.[0];
+    const candidate = response.response?.candidates?.[0] ?? response.candidates?.[0];
     const parts = candidate?.content?.parts || [];
     let content = "";
     const toolCalls: { id: string; name: string; args: unknown }[] = [];
@@ -77,9 +89,9 @@ export class GeminiMapper {
         content += part.text;
       } else if (part.functionCall) {
         toolCalls.push({
-          id: `call_${Math.random().toString(36).substring(2, 9)}`, // Gemini doesn't generate IDs, mock one
+          id: `call_${Math.random().toString(36).substring(2, 9)}`,
           name: part.functionCall.name,
-          args: part.functionCall.args || {}, // Gemini passes args as an object natively
+          args: part.functionCall.args ?? {},
         });
       }
     }
