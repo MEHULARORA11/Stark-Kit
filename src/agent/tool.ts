@@ -1,5 +1,6 @@
 import  {z} from "zod";
 import type { IToolOptions } from "../types/tools";
+import { isToolResult } from "../types/tools";
 
 // 3. Factory function
 export function defineTool<T extends z.ZodType, R = any>(
@@ -23,7 +24,33 @@ export function defineTool<T extends z.ZodType, R = any>(
       
       // 3. If it succeeded, run the tool logic
       console.log(`✅ [Tool: ${tool.name}] Executing with clean data:`, parsed.data);
-      return tool.execute(parsed.data);
+      const result = await tool.execute(parsed.data);
+
+      // 4. If outputType is defined, validate the tool's return value
+      if (tool.outputType) {
+        // Extract the actual data to validate — unwrap ToolResult if needed
+        const dataToValidate = isToolResult(result)
+          ? (result.success ? result.data : undefined)
+          : result;
+
+        // Only validate if there's actual data (skip on errors / undefined)
+        if (dataToValidate !== undefined) {
+          const outputParsed = tool.outputType.safeParse(dataToValidate);
+          if (!outputParsed.success) {
+            console.warn(
+              `⚠️ [Tool: ${tool.name}] Output does not match outputType schema:`,
+              outputParsed.error.message
+            );
+            // Return a structured error so the LLM can see the mismatch
+            return {
+              success: false,
+              error: `Tool output validation failed: ${outputParsed.error.message}`,
+            };
+          }
+        }
+      }
+
+      return result;
     }
   };
 }
