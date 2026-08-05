@@ -20,8 +20,6 @@ export interface ChatOptions {
 
 export interface Provider {
   name: string;
-  /** Model used when the caller/Agent doesn't specify one. */
-  defaultModel: string;
 
   /**
    * Takes the canonical, provider-agnostic history + tool defs, and
