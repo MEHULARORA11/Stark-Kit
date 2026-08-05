@@ -1,15 +1,15 @@
 // src/provider/openai/OpenAIMapper.ts
-import { zodToJsonSchema } from "zod-to-json-schema";
 import type { IToolOptions } from "../../types/tools.js";
 import type { ChatCompletionTool, ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
+import z from "zod";
 
 export class OpenAIMapper {
   static mapTools(tools: IToolOptions[]): ChatCompletionTool[] {
     return tools.map(tool => {
       // 1. Translate Zod to JSON Schema
-      const jsonSchema = zodToJsonSchema(tool.parameters as any) as any;
+     const jsonSchema = z.toJSONSchema(tool.parameters as any) as any;
 
       // 2. OpenAI hates the "$schema" key, so we delete it safely
       if (jsonSchema.$schema) {
@@ -45,11 +45,11 @@ export class OpenAIMapper {
         case "system":
         case "developer":
         case "user":
-          return { role: msg.role, content: msg.content };
+          return { role: msg.role, content: msg.content};
 
         case "assistant":
           return {
-            role: "assistant",
+            role: msg.role,
             content: msg.content,
             tool_calls: msg.toolCalls?.map(tc => ({
               id: tc.id,
