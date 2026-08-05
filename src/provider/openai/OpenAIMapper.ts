@@ -1,4 +1,4 @@
-import type { IToolOptions } from "../../types/tools.js";
+import { buildToolDescription, type IToolOptions } from "../../types/tools.js";
 import type { ChatCompletionTool, ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
@@ -22,7 +22,7 @@ export class OpenAIMapper {
         type: "function" as const,
         function: {
           name: tool.name,
-          description: tool.description,
+          description: buildToolDescription(tool),
           parameters: safeParameters,
         },
       };
