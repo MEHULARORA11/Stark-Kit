@@ -12,7 +12,7 @@ export interface OpenAIProviderOptions {
   defaultModel?: string;
 }
 
-export class OpenAIProvider implements Provider {
+export class OpenAIProvider implements Provider { // implement keyword make sure , that all the provider follows the basic class type named Provider
   name = "openai";
   defaultModel: string;
   private client: OpenAI;
@@ -27,7 +27,7 @@ export class OpenAIProvider implements Provider {
     }
 
     this.client = new OpenAI({ apiKey });
-    this.defaultModel = options.defaultModel ?? "gpt-4o";
+    this.defaultModel = options.defaultModel ?? "gpt-4o-mini";
   }
 
   async chat(

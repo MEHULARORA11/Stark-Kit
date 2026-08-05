@@ -1,6 +1,7 @@
 // src/agent/run.ts
 import type { Agent } from "./agent.js";
 import type { CanonicalMessage, IMessage } from "../types/message.js";
+import {HARNESS_PROMPT} from '../utils/prompt.js'
 
 export interface RunOptions {
   agent: Agent;

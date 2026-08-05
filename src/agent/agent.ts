@@ -10,7 +10,7 @@ export class Agent {
   public tools: IToolOptions[];
   public maxSteps: number;
   public temperature?: number;
-  public model?: string;
+  public model?: string; // means now it's type is string | undefined
 
   constructor(options: IAgentOptions) {
     this.name = options.name || "DefaultAgent";

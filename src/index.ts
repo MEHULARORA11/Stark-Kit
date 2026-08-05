@@ -1,25 +1,16 @@
-// src/index.ts
 import  { Agent } from "./agent/agent.js";
 import  { run } from "./agent/run.js";
-
-
-// import  Providers
 import  { OpenAIProvider } from "./provider/openai/OpenAIProvider.js";
-
-// import  Types
-import  type { IAgentOptions } from "./types/agent.js";
-import  type { IMessage } from "./types/message.js";
-import  type { IToolOptions } from "./types/tools.js";
 import z from "zod";
 import axios from "axios";
 import { defineTool } from "./agent/tool.js";
 
-const provider = new OpenAIProvider
+const provider = new OpenAIProvider()
 
 
 const weatherTool = defineTool({
   name: "weatherTool",
-  description: "Get the weather. You MUST provide the 'city' name.", 
+  description: "Get the weather. You MUST provide the 'city' name.",
   parameters: z.object({
     city: z.string().describe("The exact name of the city, e.g. Agra")
   }),
@@ -34,16 +25,15 @@ const weatherTool = defineTool({
 const agent = new Agent({
     name:"weather agent",
     provider,
-    instructions:"",
+    instructions:"you always reply in anger mode amd provide the accurate weather details by providing city names to the accurate tool ",
     tools:[weatherTool]
 })
 
 const response = await run({
     agent,
-    messages:"what is the weather of agra and delhi , pune and goa? ?",
+    messages:"what is the weather of agra and delhi , pune and goa ?",
     maxSteps:10
 })
 
 console.log(response.content)
 console.log(provider.name)
-// console.log(provider.chat())
