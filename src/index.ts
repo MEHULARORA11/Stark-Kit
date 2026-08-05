@@ -1,44 +1,62 @@
-import  { Agent } from "./agent/agent.js";
-import  { run } from "./agent/run.js";
-import  { OpenAIProvider } from "./provider/openai/OpenAIProvider.js";
-import {MistralProvider} from './provider/mistral/MistralProvider.js'
-import {GeminiProvider} from './provider/gemini/GeminiProvider.js'
-import {ClaudeProvider} from './provider/claude/ClaudeProvider.js'
-import { test, expect, vi } from "vitest";
-import z from "zod";
-import axios from "axios";
-import { defineTool } from "./agent/tool.js";
+// src/index.ts — Barrel exports for Stark-Kit
 
-const provider = new ClaudeProvider()
+// ── Types: Messages ───────────────────────────────────────────────────
+export type {
+  Role,
+  IMessage,
+  ToolCall,
+  ToolResultPayload,
+  AssistantMessage,
+  ToolResultMessage,
+  CanonicalMessage,
+} from "./types/message.js";
 
+// ── Types: Tools ──────────────────────────────────────────────────────
+export type { IToolOptions, ToolResult } from "./types/tools.js";
+export { isToolResult, buildToolDescription } from "./types/tools.js";
 
-const weatherTool = defineTool({
-  name: "weatherTool",
-  description: "Get the weather. You MUST provide the 'city' name.",
-  parameters: z.object({
-    city: z.string().describe("The exact name of the city, e.g. Agra")
-  }),
-  // ...
-    execute:async ({city}) => {
-         const url = `https://wttr.in/${city.toLowerCase()}?format=%C+%t`
-            const response = await axios.get(url,{responseType:'text'})
-            return JSON.stringify({city,weatherInfo:response.data})
-    }
-})
+// ── Types: Agent ──────────────────────────────────────────────────────
+export type { IAgentOptions, AgentHooks } from "./types/agent.js";
 
-const agent = new Agent({
-    name:"weather agent",
-    provider,
-    instructions:"you always reply in anger mode amd provide the accurate weather details by providing city names to the accurate tool ",
-    tools:[weatherTool],
-    model:'gemini-3.6-flash'
-})
+// ── Agent ─────────────────────────────────────────────────────────────
+export { Agent } from "./agent/agent.js";
+export { defineTool } from "./agent/tool.js";
 
-const response = await run({
-    agent,
-    messages:"what is the weather of agra and delhi , pune and goa ?",
-    maxSteps:10
-})
+// ── Run Loop ──────────────────────────────────────────────────────────
+export { run, runStream, resumeRun, isHITLPause } from "./agent/run.js";
+export type {
+  RunOptions,
+  RunResult,
+  RunResultOrPause,
+  HITLPause,
+  HITLDecision,
+  PendingToolCall,
+  RunStreamEvent,
+} from "./agent/run.js";
 
-console.log(response.content)
-console.log(provider.name)
+// ── Handoff / Orchestration ───────────────────────────────────────────
+export { createHandoffTool, isHandoffResult } from "./agent/handoff.js";
+export type { HandoffResult } from "./agent/handoff.js";
+
+// ── Provider Interface ────────────────────────────────────────────────
+export type {
+  Provider,
+  AIResponse,
+  ChatOptions,
+  StreamChunk,
+} from "./provider/provider.js";
+
+// ── Provider Implementations ──────────────────────────────────────────
+export { OpenAIProvider } from "./provider/openai/OpenAIProvider.js";
+export { ClaudeProvider } from "./provider/claude/ClaudeProvider.js";
+export { GeminiProvider } from "./provider/gemini/GeminiProvider.js";
+export { MistralProvider } from "./provider/mistral/MistralProvider.js";
+
+// ── Mappers (for advanced use / custom providers) ─────────────────────
+export { OpenAIMapper } from "./provider/openai/OpenAIMapper.js";
+export { ClaudeMapper } from "./provider/claude/ClaudeMapper.js";
+export { GeminiMapper } from "./provider/gemini/GeminiMapper.js";
+export { MistralMapper } from "./provider/mistral/MistralMapper.js";
+
+// ── Utilities ─────────────────────────────────────────────────────────
+export { config, getEnv } from "./utils/config.js";
