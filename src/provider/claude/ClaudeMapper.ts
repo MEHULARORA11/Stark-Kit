@@ -1,6 +1,6 @@
-import  type { CanonicalMessage }from "../../types/message";
-import type { IToolOptions } from "../../types/tools";
-import type { AIResponse } from "../provider";
+import type { CanonicalMessage } from "../../types/message.js";
+import type { IToolOptions } from "../../types/tools.js";
+import type { AIResponse } from "../provider.js";
 
 export class ClaudeMapper {
   static toClaudeMessages(messages: CanonicalMessage[]): { system?: string; messages: any[] } {
@@ -20,7 +20,7 @@ export class ClaudeMapper {
             {
               type: "tool_result",
               tool_use_id: msg.result.toolCallId,
-              content: typeof msg.result.content === "string" ?msg.result.content : JSON.stringify(msg.result.),
+              content: typeof msg.result.content === "string" ? msg.result.content : JSON.stringify(msg.result.content),
             },
           ],
         });
@@ -37,7 +37,8 @@ export class ClaudeMapper {
             type: "tool_use",
             id: call.id,
             name: call.name,
-            input: JSON.parse(call.args as string),
+            // Claude expects an object here; your CanonicalMessage 'args' is an object.
+            input: typeof call.args === "string" ? JSON.parse(call.args) : (call.args ?? {}),
           });
         }
         claudeMessages.push({ role: "assistant", content });
@@ -61,9 +62,9 @@ export class ClaudeMapper {
     }));
   }
 
- static fromClaudeResponse(response: any): AIResponse {
+  static fromClaudeResponse(response: any): AIResponse {
     let content = "";
-    const toolCalls: any[] = [];
+    const toolCalls: { id: string; name: string; args: unknown }[] = [];
 
     for (const block of response.content) {
       if (block.type === "text") {
@@ -72,18 +73,14 @@ export class ClaudeMapper {
         toolCalls.push({
           id: block.id,
           name: block.name,
-          // Using 'args' here since your toClaudeMessages uses call.args
-          args: JSON.stringify(block.input), 
+          args: block.input || {}, // Claude natively returns a parsed object
         });
       }
     }
 
-    // Cast to unknown first if TypeScript still complains about strict structural typing,
-    // but the flat structure is what AIResponse requires based on your error logs.
     return {
-      role: "assistant",
-      content,
-      ...(toolCalls.length > 0 && { toolCalls }),
-    } as unknown as AIResponse;
+      content: content || null,
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    };
   }
 }
