@@ -42,7 +42,10 @@ export class ClaudeMapper {
             {
               type: "tool_result",
               tool_use_id: msg.result.toolCallId,
-              content: typeof msg.result.content === "string" ? msg.result.content : JSON.stringify(msg.result.content ?? ""),
+              // Claude strictly requires tool_result content to be a string
+              content: typeof msg.result.content === "string" 
+                ? msg.result.content 
+                : JSON.stringify(msg.result.content ?? ""),
             },
           ],
         });
@@ -68,7 +71,8 @@ export class ClaudeMapper {
 
       claudeMessages.push({
         role: msg.role === "user" ? "user" : "assistant",
-        content: msg.content,
+        // Fallback to " " to prevent Anthropic 400 error for empty strings/null
+        content: msg.content || " ", 
       });
     }
 
