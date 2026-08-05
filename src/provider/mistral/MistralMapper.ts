@@ -1,15 +1,40 @@
-import type { CanonicalMessage } from "../../types/message.js";
 import type { IToolOptions } from "../../types/tools.js";
 import type { AIResponse } from "../provider.js";
+import type { CanonicalMessage } from "../../types/message.js";
+import z from "zod";
 
 export class MistralMapper {
-  static toMistralMessages(messages: CanonicalMessage[]): any[] {
-    return messages.map((msg) => {
+  static mapTools(tools: IToolOptions[]): any[] {
+    return tools.map((tool) => {
+      const jsonSchema = z.toJSONSchema(tool.parameters as any) as any;
+
+      if (jsonSchema.$schema) {
+        delete jsonSchema.$schema;
+      }
+
+      const safeParameters =
+        jsonSchema.type === "object"
+          ? jsonSchema
+          : { type: "object", properties: {} };
+
+      return {
+        type: "function" as const,
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: safeParameters,
+        },
+      };
+    });
+  }
+
+  static toMistralMessages(history: CanonicalMessage[]): any[] {
+    return history.map((msg) => {
       if (msg.role === "tool") {
         return {
           role: "tool",
           name: (msg as any).name || "tool_result",
-          content: typeof msg.result.content === "string" ? msg.result.content : JSON.stringify(msg.result.content),
+          content: typeof msg.result.content === "string" ? msg.result.content : JSON.stringify(msg.result.content ?? ""),
           tool_call_id: msg.result.toolCallId,
         };
       }
@@ -30,21 +55,10 @@ export class MistralMapper {
       }
 
       return {
-        role: msg.role,
+        role: msg.role === "developer" ? "system" : msg.role,
         content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
       };
     });
-  }
-
-  static toMistralTools(tools: IToolOptions[]): any[] {
-    return tools.map((tool) => ({
-      type: "function",
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
-      },
-    }));
   }
 
   static fromMistralResponse(response: any): AIResponse {
@@ -57,8 +71,8 @@ export class MistralMapper {
     for (const tc of rawToolCalls) {
       let args: unknown = {};
       try {
-        args = typeof tc.function.arguments === "string" 
-          ? JSON.parse(tc.function.arguments) 
+        args = typeof tc.function.arguments === "string"
+          ? JSON.parse(tc.function.arguments)
           : tc.function.arguments;
       } catch {
         args = {};
@@ -71,7 +85,7 @@ export class MistralMapper {
     }
 
     return {
-      content: message?.content || null,
+      content: message?.content ?? null,
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     };
   }
