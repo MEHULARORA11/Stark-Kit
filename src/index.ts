@@ -3,11 +3,13 @@ import  { run } from "./agent/run.js";
 import  { OpenAIProvider } from "./provider/openai/OpenAIProvider.js";
 import {MistralProvider} from './provider/mistral/MistralProvider.js'
 import {GeminiProvider} from './provider/gemini/GeminiProvider.js'
+import {ClaudeProvider} from './provider/claude/ClaudeProvider.js'
+import { test, expect, vi } from "vitest";
 import z from "zod";
 import axios from "axios";
 import { defineTool } from "./agent/tool.js";
 
-const provider = new GeminiProvider()
+const provider = new ClaudeProvider()
 
 
 const weatherTool = defineTool({
