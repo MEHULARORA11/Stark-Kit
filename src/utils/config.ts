@@ -22,4 +22,7 @@ export function getEnv(key: string): string | undefined {
 // apiKey is passed into its constructor).
 export const config = {
   OPENAI_API_KEY: getEnv('OPENAI_API_KEY'),
+  MISTRAL_API_KEY: getEnv('MISTRAL_API_KEY'),
+  ANTHROPIC_API_KEY: getEnv('ANTHROPIC_API_KEY'),
+  GEMINI_API_KEY: getEnv('GEMINI_API_KEY'),
 }
