@@ -1,15 +1,37 @@
-import type { CanonicalMessage } from "../../types/message.js";
 import type { IToolOptions } from "../../types/tools.js";
 import type { AIResponse } from "../provider.js";
+import type { CanonicalMessage } from "../../types/message.js";
+import z from "zod";
 
 export class ClaudeMapper {
-  static toClaudeMessages(messages: CanonicalMessage[]): { system?: string; messages: any[] } {
+  static mapTools(tools: IToolOptions[]): any[] {
+    return tools.map((tool) => {
+      const jsonSchema = z.toJSONSchema(tool.parameters as any) as any;
+
+      if (jsonSchema.$schema) {
+        delete jsonSchema.$schema;
+      }
+
+      const safeParameters =
+        jsonSchema.type === "object"
+          ? jsonSchema
+          : { type: "object", properties: {} };
+
+      return {
+        name: tool.name,
+        description: tool.description,
+        input_schema: safeParameters,
+      };
+    });
+  }
+
+  static toClaudeMessages(history: CanonicalMessage[]): { system?: string; messages: any[] } {
     let system: string | undefined;
     const claudeMessages: any[] = [];
 
-    for (const msg of messages) {
-      if (msg.role === "system") {
-        system = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+    for (const msg of history) {
+      if (msg.role === "system" || msg.role === "developer") {
+        system = system ? `${system}\n${msg.content}` : String(msg.content);
         continue;
       }
 
@@ -20,7 +42,7 @@ export class ClaudeMapper {
             {
               type: "tool_result",
               tool_use_id: msg.result.toolCallId,
-              content: typeof msg.result.content === "string" ? msg.result.content : JSON.stringify(msg.result.content),
+              content: typeof msg.result.content === "string" ? msg.result.content : JSON.stringify(msg.result.content ?? ""),
             },
           ],
         });
@@ -37,7 +59,6 @@ export class ClaudeMapper {
             type: "tool_use",
             id: call.id,
             name: call.name,
-            // Claude expects an object here; your CanonicalMessage 'args' is an object.
             input: typeof call.args === "string" ? JSON.parse(call.args) : (call.args ?? {}),
           });
         }
@@ -54,26 +75,18 @@ export class ClaudeMapper {
     return { system, messages: claudeMessages };
   }
 
-  static toClaudeTools(tools: IToolOptions[]): any[] {
-    return tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: tool.parameters,
-    }));
-  }
-
   static fromClaudeResponse(response: any): AIResponse {
     let content = "";
     const toolCalls: { id: string; name: string; args: unknown }[] = [];
 
-    for (const block of response.content) {
+    for (const block of response.content || []) {
       if (block.type === "text") {
         content += block.text;
       } else if (block.type === "tool_use") {
         toolCalls.push({
           id: block.id,
           name: block.name,
-          args: block.input || {}, // Claude natively returns a parsed object
+          args: block.input ?? {},
         });
       }
     }

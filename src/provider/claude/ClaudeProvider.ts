@@ -1,86 +1,57 @@
-import type { CanonicalMessage } from "../../types/message.js";
+import Anthropic from "@anthropic-ai/sdk";
+import type { Provider, AIResponse, ChatOptions } from "../provider.js";
 import type { IToolOptions } from "../../types/tools.js";
-import type { AIResponse } from "../provider.js";
+import type { CanonicalMessage } from "../../types/message.js";
+import { ClaudeMapper } from "./ClaudeMapper.js";
+import { config } from "../../utils/config.js";
 
-export class ClaudeMapper {
-  static toClaudeMessages(messages: CanonicalMessage[]): { system?: string; messages: any[] } {
-    let system: string | undefined;
-    const claudeMessages: any[] = [];
+export interface ClaudeProviderOptions {
+  apiKey?: string;
+  model?: string;
+}
 
-    for (const msg of messages) {
-      if (msg.role === "system") {
-        system = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
-        continue;
-      }
+export class ClaudeProvider implements Provider {
+  name = "claude";
+  model?: string;
+  private client: Anthropic;
 
-      if (msg.role === "tool") {
-        claudeMessages.push({
-          role: "user",
-          content: [
-            {
-              type: "tool_result",
-              tool_use_id: msg.result.toolCallId,
-              content: typeof msg.result.content === "string" ? msg.result.content : JSON.stringify(msg.result.content),
-            },
-          ],
-        });
-        continue;
-      }
+  constructor(options: ClaudeProviderOptions = {}) {
+    const apiKey = options.apiKey ?? config.ANTHROPIC_API_KEY;
 
-      if (msg.role === "assistant" && msg.toolCalls?.length) {
-        const content: any[] = [];
-        if (msg.content) {
-          content.push({ type: "text", text: msg.content });
-        }
-        for (const call of msg.toolCalls) {
-          content.push({
-            type: "tool_use",
-            id: call.id,
-            name: call.name,
-            // Claude expects an object here; your CanonicalMessage 'args' is an object.
-            input: typeof call.args === "string" ? JSON.parse(call.args) : (call.args ?? {}),
-          });
-        }
-        claudeMessages.push({ role: "assistant", content });
-        continue;
-      }
-
-      claudeMessages.push({
-        role: msg.role === "user" ? "user" : "assistant",
-        content: msg.content,
-      });
+    if (!apiKey) {
+      throw new Error(
+        "ClaudeProvider: no API key available. Pass { apiKey } explicitly or set ANTHROPIC_API_KEY."
+      );
     }
 
-    return { system, messages: claudeMessages };
+    this.client = new Anthropic({ apiKey });
+    this.model = options.model;
   }
 
-  static toClaudeTools(tools: IToolOptions[]): any[] {
-    return tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: tool.parameters,
-    }));
-  }
-
-  static fromClaudeResponse(response: any): AIResponse {
-    let content = "";
-    const toolCalls: { id: string; name: string; args: unknown }[] = [];
-
-    for (const block of response.content) {
-      if (block.type === "text") {
-        content += block.text;
-      } else if (block.type === "tool_use") {
-        toolCalls.push({
-          id: block.id,
-          name: block.name,
-          args: block.input || {}, // Claude natively returns a parsed object
-        });
-      }
+  async chat(
+    history: CanonicalMessage[],
+    tools: IToolOptions[] = [],
+    options: ChatOptions = {}
+  ): Promise<AIResponse> {
+    const model = options.model ?? this.model;
+    if (!model) {
+      throw new Error(
+        "ClaudeProvider: 'model' is required. Pass it in constructor options or chat options."
+      );
     }
 
-    return {
-      content: content || null,
-      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-    };
+    const { system, messages: claudeMessages } = ClaudeMapper.toClaudeMessages(history);
+    const claudeTools = ClaudeMapper.mapTools(tools);
+
+    const response = await this.client.messages.create({
+      model,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature,
+      system,
+      messages: claudeMessages,
+      tools: claudeTools.length > 0 ? claudeTools : undefined,
+    });
+
+    return ClaudeMapper.fromClaudeResponse(response);
   }
 }
