@@ -43,12 +43,29 @@ export class MistralProvider implements Provider {
     const mistralTools = MistralMapper.mapTools(tools);
     const mistralMessages = MistralMapper.toMistralMessages(history);
 
+    // Map provider-agnostic toolChoice to Mistral's toolChoice format
+    let toolChoice: any = undefined;
+    if (options.toolChoice && mistralTools.length > 0) {
+      if (options.toolChoice === "auto") {
+        toolChoice = "auto";
+      } else if (options.toolChoice === "required") {
+        // Mistral's "any" means the model MUST call at least one tool
+        toolChoice = "any";
+      } else if (typeof options.toolChoice === "object") {
+        toolChoice = {
+          type: "function",
+          function: { name: options.toolChoice.name },
+        };
+      }
+    }
+
     const response = await this.client.chat.complete({
       model,
       temperature: options.temperature,
       maxTokens: options.maxTokens,
       messages: mistralMessages,
       tools: mistralTools.length > 0 ? mistralTools : undefined,
+      toolChoice,
     });
 
     return MistralMapper.fromMistralResponse(response);
@@ -78,6 +95,21 @@ export class MistralProvider implements Provider {
     }
     const toolCallsMap = new Map<number, ActiveToolCall>();
 
+    // Map provider-agnostic toolChoice to Mistral's toolChoice format
+    let toolChoiceStream: any = undefined;
+    if (options.toolChoice && mistralTools.length > 0) {
+      if (options.toolChoice === "auto") {
+        toolChoiceStream = "auto";
+      } else if (options.toolChoice === "required") {
+        toolChoiceStream = "any";
+      } else if (typeof options.toolChoice === "object") {
+        toolChoiceStream = {
+          type: "function",
+          function: { name: options.toolChoice.name },
+        };
+      }
+    }
+
     try {
       const stream = await this.client.chat.stream({
         model,
@@ -85,6 +117,7 @@ export class MistralProvider implements Provider {
         maxTokens: options.maxTokens,
         messages: mistralMessages,
         tools: mistralTools.length > 0 ? mistralTools : undefined,
+        toolChoice: toolChoiceStream,
       });
 
       for await (const event of stream) {

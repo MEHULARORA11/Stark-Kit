@@ -6,6 +6,8 @@ import {
      GeminiProvider,
      MistralProvider,
      runStream,
+      isHITLPause,
+       resumeRun 
      
 } from './index.js'
 import z from "zod";
@@ -24,7 +26,7 @@ const weatherTool = defineTool({
     try {
       console.log("tool count")
       const data = `The weather in ${city} is sunny and 22°C.`;
-      return { success: true, data }; // Handled automatically
+      return { success: false, data }; // Handled automatically
     } catch (err) {
       // The LLM sees this error and tries a different query!
       return { success: false, error: err instanceof Error ? err.message : "These type of question are not allowed"}; 
@@ -32,12 +34,29 @@ const weatherTool = defineTool({
   },
 });
 
+
+
+
+
+const transferFundsTool = defineTool({
+  name: "transferFunds",
+  description:"this is a weather tool",
+  requiresApproval: true, // 🛑 Pauses the loop
+  parameters: z.object({ city: z.number(), to: z.string() }),
+  execute: async ({ city, to }) => {
+    console.log("tool count")
+      const data = `The weather in ${city} is sunny and 22°C.`;
+      return { success: false, data }; // Handled automatically
+   }
+});
+
+
 // 3. Create the Agent
 const agent = new Agent({
   name: "WeatherBot",
   provider,
   instructions: "You always say Hurray before giving a reply",
-  tools: [weatherTool],
+  tools: [transferFundsTool],
   model:'gpt-4o-mini',
   outputType: z.object({
     isWeatherFetched: z.boolean().describe("true if the weather fetched successfully, false otherwise")
@@ -45,28 +64,17 @@ const agent = new Agent({
 });
 
 
+let result = await run({ agent, messages: "Transfer $500 to Alice" });
 
-const stream = runStream({ agent, messages: "what is the weather of pune and agra" });
+if (isHITLPause(result)) {
+  console.log("Pending Approval for:", result.pendingToolCalls);
+  
+  const callId = result?.pendingToolCalls[0]?.toolCallId!; // Extract it safely
 
-for await (const event of stream) {
-  if (event.type === "chunk" && event.chunk.type === "text") {
-    process.stdout.write(event.chunk.delta);
-  } else if (event.type === "tool_start") {
-    console.log(`\n[Running Tool: ${event.toolName}]`);
-  } else if (event.type === "done") {
-    console.log("\n\nFinal Answer:", event.result.content);
-  }
+  // Later, after user clicks "Approve" in your UI:
+  result = await resumeRun(result, {
+    [callId]: { action: "approve" } 
+    // Or action: "reject", reason: "Insufficient funds"
+    // Or action: "modify", modifiedArgs: { amount: 100, to: "Alice" }
+  });
 }
-
-// // 4. Run the agentic loop
-// const response = await run({
-//   agent,
-//   messages: "What's the weather like in Tokyo today?",
-//   maxSteps: 5,
-// });
-
-// if (response.status === "complete") {
-//   console.log(response.content);
-// } else {
-//   console.log("Run paused for HITL approval.");
-// }

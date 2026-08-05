@@ -43,12 +43,28 @@ export class OpenAIProvider implements Provider {
     const openaiTools = OpenAIMapper.mapTools(tools);
     const openaiMessages = OpenAIMapper.toOpenAIMessages(history);
 
+    // Map provider-agnostic toolChoice to OpenAI's tool_choice format
+    let toolChoice: any = undefined;
+    if (options.toolChoice && openaiTools.length > 0) {
+      if (options.toolChoice === "auto") {
+        toolChoice = "auto";
+      } else if (options.toolChoice === "required") {
+        toolChoice = "required";
+      } else if (typeof options.toolChoice === "object") {
+        toolChoice = {
+          type: "function" as const,
+          function: { name: options.toolChoice.name },
+        };
+      }
+    }
+
     const response = await this.client.chat.completions.create({
       model,
       temperature: options.temperature,
       max_tokens: options.maxTokens,
       messages: openaiMessages,
       tools: openaiTools.length > 0 ? openaiTools : undefined,
+      tool_choice: toolChoice,
     });
 
     const choice = response.choices[0]?.message;
@@ -75,12 +91,28 @@ export class OpenAIProvider implements Provider {
     const openaiTools = OpenAIMapper.mapTools(tools);
     const openaiMessages = OpenAIMapper.toOpenAIMessages(history);
 
+    // Map provider-agnostic toolChoice to OpenAI's tool_choice format
+    let toolChoiceStream: any = undefined;
+    if (options.toolChoice && openaiTools.length > 0) {
+      if (options.toolChoice === "auto") {
+        toolChoiceStream = "auto";
+      } else if (options.toolChoice === "required") {
+        toolChoiceStream = "required";
+      } else if (typeof options.toolChoice === "object") {
+        toolChoiceStream = {
+          type: "function" as const,
+          function: { name: options.toolChoice.name },
+        };
+      }
+    }
+
     const stream = await this.client.chat.completions.create({
       model,
       temperature: options.temperature,
       max_tokens: options.maxTokens,
       messages: openaiMessages,
       tools: openaiTools.length > 0 ? openaiTools : undefined,
+      tool_choice: toolChoiceStream,
       stream: true,
     });
 

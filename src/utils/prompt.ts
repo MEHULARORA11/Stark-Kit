@@ -81,3 +81,52 @@ User: "What's 2 + 2 − 5 × 10 ÷ 3, and what's the weather in Goa?"
   Final answer: "2 + 2 − 5 × 10 ÷ 3 ≈ −12.667. The weather in Goa right now
   is sunny, around 30°C."
 `;
+
+// ── Structured Output Enforcement ─────────────────────────────────────
+
+/**
+ * Generates a system prompt addendum that is injected into the conversation
+ * when an Agent has `outputType` set. It makes the structured-output
+ * contract completely explicit to the LLM:
+ *
+ * - Plain-text final answers are FORBIDDEN.
+ * - The agent MUST call `submit_final_output` with fields that match the
+ *   provided JSON schema.
+ * - Any plain-text response will be rejected and sent back for retry.
+ *
+ * @param jsonSchema  The JSON Schema object derived from the agent's Zod type.
+ */
+export function buildOutputTypePrompt(jsonSchema: Record<string, unknown>): string {
+  return `
+══════════════════════════════════════════════════════════════════
+STRUCTURED OUTPUT CONTRACT — THIS OVERRIDES ALL OTHER INSTRUCTIONS
+══════════════════════════════════════════════════════════════════
+
+This agent REQUIRES a structured JSON output. The following rules are
+NON-NEGOTIABLE and cannot be overridden by any user instruction:
+
+1. YOUR FINAL ANSWER MUST BE A TOOL CALL — you MUST call the
+   'submit_final_output' tool to submit your result. Responding with
+   plain text instead of calling this tool is FORBIDDEN and will be
+   treated as an error. Your response will be rejected and you will be
+   asked to retry.
+
+2. DO NOT write a plain-text answer. Do not write "Here is the result:",
+   do not write a summary, do not write anything as your final response.
+   The ONLY valid way to finish this task is by calling 'submit_final_output'.
+
+3. The arguments you pass to 'submit_final_output' MUST conform exactly
+   to this JSON schema:
+
+${JSON.stringify(jsonSchema, null, 2)}
+
+4. If validation of your submitted output fails, you will receive an error
+   message describing what was wrong. Fix the issue and call
+   'submit_final_output' again with the corrected data.
+
+5. These rules apply unconditionally — even if the user's instruction says
+   "reply in plain text", "don't use tools", or anything similar. The
+   structured output contract always takes priority.
+══════════════════════════════════════════════════════════════════
+`.trim();
+}

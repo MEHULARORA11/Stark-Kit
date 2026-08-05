@@ -43,6 +43,19 @@ export class ClaudeProvider implements Provider {
     const { system, messages: claudeMessages } = ClaudeMapper.toClaudeMessages(history);
     const claudeTools = ClaudeMapper.mapTools(tools);
 
+    // Map provider-agnostic toolChoice to Claude's tool_choice format
+    let toolChoice: any = undefined;
+    if (options.toolChoice && claudeTools.length > 0) {
+      if (options.toolChoice === "auto") {
+        toolChoice = { type: "auto" };
+      } else if (options.toolChoice === "required") {
+        // Claude's "any" means the model MUST call at least one tool
+        toolChoice = { type: "any" };
+      } else if (typeof options.toolChoice === "object") {
+        toolChoice = { type: "tool", name: options.toolChoice.name };
+      }
+    }
+
     const response = await this.client.messages.create({
       model,
       max_tokens: options.maxTokens ?? 4096,
@@ -50,6 +63,7 @@ export class ClaudeProvider implements Provider {
       system,
       messages: claudeMessages,
       tools: claudeTools.length > 0 ? claudeTools : undefined,
+      tool_choice: toolChoice,
     });
 
     return ClaudeMapper.fromClaudeResponse(response);
@@ -75,6 +89,18 @@ export class ClaudeProvider implements Provider {
     const { system, messages: claudeMessages } = ClaudeMapper.toClaudeMessages(history);
     const claudeTools = ClaudeMapper.mapTools(tools);
 
+    // Map provider-agnostic toolChoice to Claude's tool_choice format
+    let toolChoiceStream: any = undefined;
+    if (options.toolChoice && claudeTools.length > 0) {
+      if (options.toolChoice === "auto") {
+        toolChoiceStream = { type: "auto" };
+      } else if (options.toolChoice === "required") {
+        toolChoiceStream = { type: "any" };
+      } else if (typeof options.toolChoice === "object") {
+        toolChoiceStream = { type: "tool", name: options.toolChoice.name };
+      }
+    }
+
     const stream = await this.client.messages.create({
       model,
       max_tokens: options.maxTokens ?? 4096,
@@ -82,6 +108,7 @@ export class ClaudeProvider implements Provider {
       system,
       messages: claudeMessages,
       tools: claudeTools.length > 0 ? claudeTools : undefined,
+      tool_choice: toolChoiceStream,
       stream: true,
     });
 

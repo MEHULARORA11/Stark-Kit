@@ -9,6 +9,8 @@ import type { ChatOptions, StreamChunk, AIResponse } from "../provider/provider.
 import type { IToolOptions } from "../types/tools.js";
 import { isToolResult } from "../types/tools.js";
 import { isHandoffResult } from "./handoff.js";
+import { buildOutputTypePrompt } from "../utils/prompt.js";
+import z from "zod";
 
 // ═══════════════════════════════════════════════════════════════════════
 //  Public Types
@@ -102,6 +104,17 @@ export async function run({
     { role: "system", content: agent.instructions },
   ];
 
+  // ── Structured Output Contract injection ──────────────────────────
+  // When outputType is set, inject a strong system directive BEFORE the
+  // user message so the LLM sees the contract at the top of every context.
+  if (agent.outputType) {
+    const jsonSchema = z.toJSONSchema(agent.outputType as any) as Record<string, unknown>;
+    history.push({
+      role: "system",
+      content: buildOutputTypePrompt(jsonSchema),
+    });
+  }
+
   if (typeof messages === "string") {
     history.push({ role: "user", content: messages });
   } else {
@@ -113,6 +126,9 @@ export async function run({
   const chatOptions: ChatOptions = {
     model: model ?? agent.model,
     temperature: temperature ?? agent.temperature,
+    // When outputType is active, force the provider to call a tool so the
+    // LLM cannot escape with a plain-text reply.
+    toolChoice: agent.outputType ? "required" : undefined,
   };
 
   return _runLoop(agent, history, 0, effectiveMaxSteps, chatOptions);
@@ -205,6 +221,15 @@ export async function* runStream({
     { role: "system", content: agent.instructions },
   ];
 
+  // ── Structured Output Contract injection ──────────────────────────
+  if (agent.outputType) {
+    const jsonSchema = z.toJSONSchema(agent.outputType as any) as Record<string, unknown>;
+    history.push({
+      role: "system",
+      content: buildOutputTypePrompt(jsonSchema),
+    });
+  }
+
   if (typeof messages === "string") {
     history.push({ role: "user", content: messages });
   } else {
@@ -214,6 +239,8 @@ export async function* runStream({
   const chatOptions: ChatOptions = {
     model: model ?? agent.model,
     temperature: temperature ?? agent.temperature,
+    // Force tool calling when outputType is active
+    toolChoice: agent.outputType ? "required" : undefined,
   };
 
   let activeAgent = agent;
@@ -265,8 +292,24 @@ export async function* runStream({
       toolCalls: aiResponse.toolCalls,
     });
 
-    // No tools called -> final answer
+    // No tools called -> final answer (or rejection when outputType is set)
     if (!aiResponse.toolCalls || aiResponse.toolCalls.length === 0) {
+      // ── Strict outputType enforcement ──────────────────────────────
+      // If this agent requires structured output, a plain-text reply is
+      // invalid. Push a correction into history and retry the loop so the
+      // LLM is forced to call submit_final_output.
+      if (activeAgent.outputType) {
+        history.push({
+          role: "system",
+          content:
+            "[Output Enforcement] Your response was plain text, but this agent requires a structured JSON output. " +
+            "You MUST call the 'submit_final_output' tool with the required fields — plain-text responses are NOT accepted. " +
+            "Call 'submit_final_output' now with all required fields populated.",
+        });
+        yield { type: "step_complete", stepNumber: stepCount };
+        continue; // retry — do NOT return
+      }
+
       const result: RunResult = {
         status: "complete",
         content: aiResponse.content,
@@ -294,7 +337,9 @@ export async function* runStream({
         if (parsed.success) {
           const finalResult: RunResult = {
             status: "complete",
-            content: aiResponse.content,
+            // Serialize the structured output into content so callers that
+            // read result.content always get the real answer, not null.
+            content: JSON.stringify(parsed.data),
             history,
             agent: activeAgent,
             finalOutput: parsed.data,
@@ -493,7 +538,21 @@ async function _runLoop(
     });
 
     // No tools called -> final answer, we're done.
+    // Exception: if outputType is set, plain-text is INVALID — push a
+    // correction and let the loop retry so the LLM is forced to call
+    // submit_final_output.
     if (!aiResponse.toolCalls || aiResponse.toolCalls.length === 0) {
+      if (activeAgent.outputType) {
+        history.push({
+          role: "system",
+          content:
+            "[Output Enforcement] Your response was plain text, but this agent requires a structured JSON output. " +
+            "You MUST call the 'submit_final_output' tool with the required fields — plain-text responses are NOT accepted. " +
+            "Call 'submit_final_output' now with all required fields populated.",
+        });
+        continue; // retry — do NOT return plain-text
+      }
+
       return {
         status: "complete",
         content: aiResponse.content,
@@ -519,7 +578,9 @@ async function _runLoop(
         if (parsed.success) {
           return {
             status: "complete",
-            content: aiResponse.content,
+            // Serialize the structured output into content so callers that
+            // read result.content always get the real answer, not null.
+            content: JSON.stringify(parsed.data),
             history,
             agent: activeAgent,
             finalOutput: parsed.data,
@@ -805,7 +866,11 @@ function _getEffectiveTools(agent: Agent): IToolOptions[] {
   if (agent.outputType) {
     tools.push({
       name: "submit_final_output",
-      description: "Submit the final structured output of your task. You MUST call this tool when you have completed your objective and have the final answer.",
+      description:
+        "REQUIRED — Submit the final structured output of your task. " +
+        "You MUST call this tool to finish. " +
+        "Responding with plain text instead of calling this tool is FORBIDDEN and will be rejected. " +
+        "This is the ONLY valid way to complete the task when structured output is required.",
       parameters: agent.outputType,
       execute: async (args) => args,
     });

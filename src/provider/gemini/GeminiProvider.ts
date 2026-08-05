@@ -43,10 +43,29 @@ export class GeminiProvider implements Provider {
     const { systemInstruction, contents } = GeminiMapper.toGeminiContents(history);
     const geminiTools = GeminiMapper.mapTools(tools);
 
+    // Map provider-agnostic toolChoice to Gemini's toolConfig format
+    let toolConfig: any = undefined;
+    if (options.toolChoice && geminiTools.length > 0) {
+      if (options.toolChoice === "auto") {
+        toolConfig = { functionCallingConfig: { mode: "AUTO" } };
+      } else if (options.toolChoice === "required") {
+        // Gemini "ANY" means the model MUST call one of the provided functions
+        toolConfig = { functionCallingConfig: { mode: "ANY" } };
+      } else if (typeof options.toolChoice === "object") {
+        toolConfig = {
+          functionCallingConfig: {
+            mode: "ANY",
+            allowedFunctionNames: [options.toolChoice.name],
+          },
+        };
+      }
+    }
+
     const modelInstance = this.ai.getGenerativeModel({
       model,
       systemInstruction,
       tools: geminiTools.length > 0 ? geminiTools : undefined,
+      toolConfig,
       generationConfig: {
         temperature: options.temperature,
         maxOutputTokens: options.maxTokens,
@@ -72,10 +91,28 @@ export class GeminiProvider implements Provider {
     const { systemInstruction, contents } = GeminiMapper.toGeminiContents(history);
     const geminiTools = GeminiMapper.mapTools(tools);
 
+    // Map provider-agnostic toolChoice to Gemini's toolConfig format
+    let toolConfigStream: any = undefined;
+    if (options.toolChoice && geminiTools.length > 0) {
+      if (options.toolChoice === "auto") {
+        toolConfigStream = { functionCallingConfig: { mode: "AUTO" } };
+      } else if (options.toolChoice === "required") {
+        toolConfigStream = { functionCallingConfig: { mode: "ANY" } };
+      } else if (typeof options.toolChoice === "object") {
+        toolConfigStream = {
+          functionCallingConfig: {
+            mode: "ANY",
+            allowedFunctionNames: [options.toolChoice.name],
+          },
+        };
+      }
+    }
+
     const modelInstance = this.ai.getGenerativeModel({
       model,
       systemInstruction,
       tools: geminiTools.length > 0 ? geminiTools : undefined,
+      toolConfig: toolConfigStream,
       generationConfig: {
         temperature: options.temperature,
         maxOutputTokens: options.maxTokens,

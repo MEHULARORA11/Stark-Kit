@@ -16,7 +16,22 @@ export interface ChatOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  /**
+   * Controls which tool (if any) the model is forced to call.
+   *
+   * - `"auto"`     — model decides (default for all providers).
+   * - `"required"` — model MUST call at least one tool (maps to each
+   *                  provider's equivalent: OpenAI `"required"`, Claude
+   *                  `{ type: "any" }`, Gemini `"ANY"`, Mistral `"any"`).
+   * - `{ type: "function"; name: string }` — model MUST call a specific
+   *                  named function.
+   *
+   * Set automatically to `"required"` by the run loop when the agent has
+   * `outputType` defined, so the LLM cannot escape with a plain-text reply.
+   */
+  toolChoice?: "auto" | "required" | { type: "function"; name: string };
 }
+
 
 // ── Streaming Chunk ───────────────────────────────────────────────────
 /**
