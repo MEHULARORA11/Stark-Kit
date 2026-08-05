@@ -1,4 +1,4 @@
-import type { IToolOptions } from "../../types/tools.js";
+import { buildToolDescription, type IToolOptions } from "../../types/tools.js";
 import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
 import z from "zod";
@@ -32,7 +32,7 @@ export class GeminiMapper {
 
       return {
         name: tool.name,
-        description: tool.description,
+        description: buildToolDescription(tool),
         parameters: safeParameters,
       };
     });
