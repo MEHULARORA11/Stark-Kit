@@ -1,4 +1,3 @@
-// src/provider/openai/OpenAIProvider.ts
 import OpenAI from "openai";
 import type { Provider, AIResponse, ChatOptions } from "../provider.js";
 import type { IToolOptions } from "../../types/tools.js";
@@ -7,14 +6,13 @@ import { OpenAIMapper } from "./OpenAIMapper.js";
 import { config } from "../../utils/config.js";
 
 export interface OpenAIProviderOptions {
-  /** Pass explicitly for BYOK / multi-tenant use instead of relying on the global config. */
   apiKey?: string;
-  defaultModel?: string;
+  model?: string;
 }
 
-export class OpenAIProvider implements Provider { // implement keyword make sure , that all the provider follows the basic class type named Provider
+export class OpenAIProvider implements Provider {
   name = "openai";
-  defaultModel: string;
+  model?: string;
   private client: OpenAI;
 
   constructor(options: OpenAIProviderOptions = {}) {
@@ -27,19 +25,26 @@ export class OpenAIProvider implements Provider { // implement keyword make sure
     }
 
     this.client = new OpenAI({ apiKey });
-    this.defaultModel = options.defaultModel ?? "gpt-4o-mini";
+    this.model = options.model;
   }
 
   async chat(
     history: CanonicalMessage[],
-    tools: IToolOptions[],
+    tools: IToolOptions[] = [],
     options: ChatOptions = {}
   ): Promise<AIResponse> {
+    const model = options.model ?? this.model;
+    if (!model) {
+      throw new Error(
+        "OpenAIProvider: 'model' is required. Pass it in constructor options or chat options."
+      );
+    }
+
     const openaiTools = OpenAIMapper.mapTools(tools);
     const openaiMessages = OpenAIMapper.toOpenAIMessages(history);
 
     const response = await this.client.chat.completions.create({
-      model: options.model ?? this.defaultModel,
+      model,
       temperature: options.temperature,
       max_tokens: options.maxTokens,
       messages: openaiMessages,
