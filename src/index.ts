@@ -1,11 +1,13 @@
 import  { Agent } from "./agent/agent.js";
 import  { run } from "./agent/run.js";
 import  { OpenAIProvider } from "./provider/openai/OpenAIProvider.js";
+import {MistralProvider} from './provider/mistral/MistralProvider.js'
+import {GeminiProvider} from './provider/gemini/GeminiProvider.js'
 import z from "zod";
 import axios from "axios";
 import { defineTool } from "./agent/tool.js";
 
-const provider = new OpenAIProvider()
+const provider = new GeminiProvider()
 
 
 const weatherTool = defineTool({
@@ -26,7 +28,8 @@ const agent = new Agent({
     name:"weather agent",
     provider,
     instructions:"you always reply in anger mode amd provide the accurate weather details by providing city names to the accurate tool ",
-    tools:[weatherTool]
+    tools:[weatherTool],
+    model:'gemini-3.6-flash'
 })
 
 const response = await run({

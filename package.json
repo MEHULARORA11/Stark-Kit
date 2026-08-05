@@ -5,6 +5,7 @@
     "email": "mehularora505@gmail.com",
     "url": "https://www.mehularora.dev"
   },
+  "type": "module",
   "main": "dist/index.js",
   "devDependencies": {
     "@types/bun": "^1.3.14",

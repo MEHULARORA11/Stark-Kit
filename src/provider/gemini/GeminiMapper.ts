@@ -10,9 +10,20 @@ export class GeminiMapper {
     const functionDeclarations = tools.map((tool) => {
       const jsonSchema = z.toJSONSchema(tool.parameters as any) as any;
 
-      if (jsonSchema.$schema) {
-        delete jsonSchema.$schema;
-      }
+      const stripGeminiIncompatibilities = (schema: any) => {
+        if (!schema || typeof schema !== "object") return;
+        
+        if ("$schema" in schema) delete schema.$schema;
+        if ("additionalProperties" in schema) delete schema.additionalProperties;
+        
+        for (const key in schema) {
+          if (typeof schema[key] === "object") {
+            stripGeminiIncompatibilities(schema[key]);
+          }
+        }
+      };
+
+      stripGeminiIncompatibilities(jsonSchema);
 
       const safeParameters =
         jsonSchema.type === "object"
@@ -33,20 +44,52 @@ export class GeminiMapper {
     let systemInstruction: string | undefined;
     const contents: any[] = [];
 
-    for (const msg of history) {
+    for (let i = 0; i < history.length; i++) {
+      const msg = history[i];
+
       if (msg.role === "system" || msg.role === "developer") {
         systemInstruction = systemInstruction ? `${systemInstruction}\n${msg.content}` : String(msg.content);
         continue;
       }
 
       if (msg.role === "tool") {
+        let responseData;
+        if (typeof msg.result.content === "string") {
+          try {
+            responseData = JSON.parse(msg.result.content);
+          } catch {
+            responseData = { output: msg.result.content };
+          }
+        } else {
+          responseData = msg.result.content;
+        }
+
+        // FIX 1: Gemini strictly maps functionResponses by EXACT NAME, not by ID. 
+        // We look backwards in the history to find the original tool name requested by the assistant.
+        let functionName = (msg as any).name || (msg.result as any).name;
+        if (!functionName && msg.result?.toolCallId) {
+          for (let j = i - 1; j >= 0; j--) {
+            const prevMsg = history[j];
+            if (prevMsg.role === "assistant" && prevMsg.toolCalls) {
+              const call = prevMsg.toolCalls.find(tc => tc.id === msg.result.toolCallId);
+              if (call) {
+                functionName = call.name;
+                break;
+              }
+            }
+          }
+        }
+        
+        functionName = functionName || "tool";
+
+        // FIX 2: The role MUST be "user" for Gemini functionResponse, never "function".
         contents.push({
-          role: "user",
+          role: "user", 
           parts: [
             {
               functionResponse: {
-                name: (msg as any).name || msg.result.toolCallId || "tool",
-                response: { output: msg.result.content },
+                name: functionName,
+                response: responseData,
               },
             },
           ],
@@ -57,6 +100,7 @@ export class GeminiMapper {
       if (msg.role === "assistant" && msg.toolCalls?.length) {
         const parts: any[] = [];
         if (msg.content) parts.push({ text: msg.content });
+        
         for (const call of msg.toolCalls) {
           parts.push({
             functionCall: {
@@ -71,7 +115,7 @@ export class GeminiMapper {
 
       contents.push({
         role: msg.role === "user" ? "user" : "model",
-        parts: [{ text: msg.content }],
+        parts: [{ text: msg.content || " " }], 
       });
     }
 
@@ -89,7 +133,7 @@ export class GeminiMapper {
         content += part.text;
       } else if (part.functionCall) {
         toolCalls.push({
-          id: `call_${Math.random().toString(36).substring(2, 9)}`,
+          id: part.functionCall.id || `call_${Math.random().toString(36).substring(2, 9)}`,
           name: part.functionCall.name,
           args: part.functionCall.args ?? {},
         });
