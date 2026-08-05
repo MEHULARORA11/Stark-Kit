@@ -18,6 +18,18 @@ export interface ChatOptions {
   maxTokens?: number;
 }
 
+// ── Streaming Chunk ───────────────────────────────────────────────────
+/**
+ * Provider-agnostic streaming chunk. Every provider's `chatStream`
+ * implementation normalizes its native delta events into this shape.
+ */
+export type StreamChunk =
+  | { type: "text"; delta: string }
+  | { type: "tool_call"; id: string; name: string; argsDelta: string }
+  | { type: "tool_call_done"; id: string; name: string; args: unknown }
+  | { type: "done"; response: AIResponse };
+
+// ── Provider Interface ────────────────────────────────────────────────
 export interface Provider {
   name: string;
 
@@ -33,4 +45,18 @@ export interface Provider {
     tools: IToolOptions[],
     options?: ChatOptions
   ): Promise<AIResponse>;
+
+  /**
+   * Streaming variant of `chat`. Yields provider-agnostic `StreamChunk`
+   * objects as they arrive from the underlying API. The final chunk is
+   * always `{ type: "done", response }` carrying the assembled AIResponse.
+   *
+   * Optional — providers that don't support streaming can omit this,
+   * and `runStream` will fall back to `chat()`.
+   */
+  chatStream?(
+    history: CanonicalMessage[],
+    tools: IToolOptions[],
+    options?: ChatOptions
+  ): AsyncGenerator<StreamChunk, void, unknown>;
 }
