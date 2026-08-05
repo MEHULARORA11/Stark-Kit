@@ -25,6 +25,9 @@
   },
   "types": "dist/index.d.ts",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@google/generative-ai": "^0.24.1",
+    "@mistralai/mistralai": "^2.5.0",
     "axios": "^1.19.0",
     "dotenv": "^17.4.2",
     "openai": "^7.3.0",
