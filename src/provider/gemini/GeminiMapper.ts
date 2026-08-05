@@ -1,6 +1,6 @@
-import type { CanonicalMessage } from "../../types/message";
-import type { IToolOptions } from "../../types/tools";
-import type { AIResponse } from "../provider"; // Added import
+import type { CanonicalMessage } from "../../types/message.js";
+import type { IToolOptions } from "../../types/tools.js";
+import type { AIResponse } from "../provider.js";
 
 export class GeminiMapper {
   static toGeminiContents(messages: CanonicalMessage[]): { systemInstruction?: string; contents: any[] } {
@@ -19,8 +19,9 @@ export class GeminiMapper {
           parts: [
             {
               functionResponse: {
-                name: msg.name || "tool",
-                response: { output: msg.content },
+                // Gemini requires a name here. We fallback to toolCallId if name is missing in msg
+                name: (msg as any).name || msg.result.toolCallId || "tool",
+                response: { output: msg.result.content },
               },
             },
           ],
@@ -35,7 +36,7 @@ export class GeminiMapper {
           parts.push({
             functionCall: {
               name: call.name,
-              args: JSON.parse(call.args as string), // Use args instead of arguments
+              args: typeof call.args === "string" ? JSON.parse(call.args) : (call.args ?? {}),
             },
           });
         }
@@ -53,6 +54,7 @@ export class GeminiMapper {
   }
 
   static toGeminiTools(tools: IToolOptions[]): any[] {
+    if (!tools || tools.length === 0) return [];
     return [
       {
         functionDeclarations: tools.map((tool) => ({
@@ -64,30 +66,27 @@ export class GeminiMapper {
     ];
   }
 
-  // Changed return type from Message to AIResponse
   static fromGeminiResponse(response: any): AIResponse {
     const candidate = response.response.candidates?.[0];
     const parts = candidate?.content?.parts || [];
     let content = "";
-    const toolCalls: any[] = [];
+    const toolCalls: { id: string; name: string; args: unknown }[] = [];
 
     for (const part of parts) {
       if (part.text) {
         content += part.text;
       } else if (part.functionCall) {
         toolCalls.push({
-          id: `call_${Math.random().toString(36).substring(2, 9)}`,
+          id: `call_${Math.random().toString(36).substring(2, 9)}`, // Gemini doesn't generate IDs, mock one
           name: part.functionCall.name,
-          args: JSON.stringify(part.functionCall.args), // Changed 'arguments' to 'args'
+          args: part.functionCall.args || {}, // Gemini passes args as an object natively
         });
       }
     }
 
-    // Return the flat structure expected by AIResponse
     return {
-      role: "assistant",
-      content,
-      ...(toolCalls.length > 0 && { toolCalls }),
-    } as unknown as AIResponse;
+      content: content || null,
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    };
   }
 }
