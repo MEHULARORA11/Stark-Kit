@@ -1,3 +1,4 @@
+// src/provider/mistral/MistralMapper.ts
 import type { IToolOptions } from "../../types/tools.js";
 import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
@@ -35,15 +36,16 @@ export class MistralMapper {
           role: "tool",
           name: (msg as any).name || "tool_result",
           content: typeof msg.result.content === "string" ? msg.result.content : JSON.stringify(msg.result.content ?? ""),
-          tool_call_id: msg.result.toolCallId,
+          // FIX: Mistral SDK requires camelCase toolCallId
+          toolCallId: msg.result.toolCallId,
         };
       }
 
       if (msg.role === "assistant" && msg.toolCalls?.length) {
-        return {
+        const assistantMsg: any = {
           role: "assistant",
-          content: msg.content || "",
-          tool_calls: msg.toolCalls.map((call) => ({
+          // FIX: Mistral SDK requires camelCase toolCalls
+          toolCalls: msg.toolCalls.map((call) => ({
             id: call.id,
             type: "function",
             function: {
@@ -52,6 +54,11 @@ export class MistralMapper {
             },
           })),
         };
+
+        // FIX: Mistral API requires content to be null if there is no text being sent alongside the tool calls
+        assistantMsg.content = msg.content ? msg.content : null;
+
+        return assistantMsg;
       }
 
       return {
@@ -65,6 +72,7 @@ export class MistralMapper {
     const choice = response.choices?.[0];
     const message = choice?.message;
 
+    // Gracefully handle both formats depending on the Mistral SDK version
     const rawToolCalls = message?.toolCalls || message?.tool_calls || [];
     const toolCalls: { id: string; name: string; args: unknown }[] = [];
 
