@@ -2,6 +2,8 @@
 
 Stark-Kit is a lightweight, strictly typed, and provider-agnostic TypeScript framework for building AI agents. Write your agentic loops once and run them on OpenAI, Claude, Gemini, or Mistral without changing your core application logic.
 
+**📖 Documentation:** Run `cd frontend && bun dev` to start the local docs site at [http://localhost:3000](http://localhost:3000), or browse the docs source in [`frontend/app/stark-kit/docs/`](./frontend/app/stark-kit/docs/).
+
 ## Why Stark-Kit?
 
 Most agent frameworks tightly couple your business logic to a specific provider's SDK, making switching models or providers tedious. Stark-Kit addresses this by introducing a provider-agnostic execution model centered around a unified `CanonicalMessage` interface.
