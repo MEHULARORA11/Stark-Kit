@@ -4,6 +4,7 @@ import { useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Copy01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
+import { Highlight, themes } from "prism-react-renderer";
 
 interface CodeBlockProps {
   code: string;
@@ -52,9 +53,21 @@ export function CodeBlock({ code, language = "typescript", className, filename }
         </button>
       </div>
       {/* Code area */}
-      <pre className="overflow-x-auto p-4 text-sm leading-relaxed">
-        <code className="font-mono text-foreground/90 whitespace-pre">{code}</code>
-      </pre>
+      <Highlight theme={themes.vsDark} code={code.trim()} language={language}>
+        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          <pre className={cn("overflow-x-auto p-4 text-sm leading-relaxed", className)} style={style}>
+            <code className="font-mono text-foreground/90">
+              {tokens.map((line, i) => (
+                <div key={i} {...getLineProps({ line })}>
+                  {line.map((token, key) => (
+                    <span key={key} {...getTokenProps({ token })} />
+                  ))}
+                </div>
+              ))}
+            </code>
+          </pre>
+        )}
+      </Highlight>
     </div>
   );
 }

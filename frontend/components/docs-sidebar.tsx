@@ -58,6 +58,26 @@ const NAV_ITEMS = [
     href: "/stark-kit/docs/orchestration",
     icon: AiNetworkIcon,
   },
+  {
+    title: "Structured Outputs",
+    href: "/stark-kit/docs/structured-outputs",
+    icon: CodeIcon,
+  },
+  {
+    title: "Guardrails & Hooks",
+    href: "/stark-kit/docs/guardrails",
+    icon: UserCheck01Icon,
+  },
+  {
+    title: "Advanced Tools",
+    href: "/stark-kit/docs/tools-advanced",
+    icon: ZapIcon,
+  },
+  {
+    title: "Providers",
+    href: "/stark-kit/docs/providers",
+    icon: PackageIcon,
+  },
 ];
 
 export function DocsSidebar() {
