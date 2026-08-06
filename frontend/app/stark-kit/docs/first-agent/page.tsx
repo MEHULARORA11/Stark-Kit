@@ -179,7 +179,7 @@ export default function FirstAgentPage() {
       </DocP>
       <CodeBlock className="mt-4" code={BUILD_AGENT_CODE} language="typescript" filename="agent.ts" />
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-border">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-border">
         <div className="bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border">
           Agent Configuration Options
         </div>

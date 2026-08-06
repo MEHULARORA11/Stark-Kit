@@ -212,19 +212,18 @@ export default function LandingPage() {
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
             <div className="grid gap-6 lg:grid-cols-[auto_1fr] lg:gap-10">
               {/* Install */}
-              <div className="space-y-4">
+              <div className="space-y-4 min-w-0">
                 <h2 className="font-heading text-xl font-semibold text-foreground">Install</h2>
                 <CodeBlock
                   code={INSTALL_CODE}
                   language="bash"
-                  className="min-w-[280px]"
                 />
                 <p className="text-sm text-muted-foreground">
                   Peer dep: <code className="rounded bg-muted px-1 font-mono text-xs">zod</code>
                 </p>
               </div>
               {/* Code preview */}
-              <div className="space-y-4">
+              <div className="space-y-4 min-w-0">
                 <h2 className="font-heading text-xl font-semibold text-foreground">Minimal Example</h2>
                 <CodeBlock
                   code={BASIC_AGENT_CODE}

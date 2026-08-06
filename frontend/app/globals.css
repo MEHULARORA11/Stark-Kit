@@ -138,3 +138,11 @@
     display: none;
   }
 }
+
+/* Prevent long strings / inline-code from blowing out mobile layout */
+@layer base {
+  code:not(pre code) {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+}

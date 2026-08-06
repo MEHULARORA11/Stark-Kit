@@ -9,7 +9,7 @@ export function DocPage({ children, className }: DocPageProps) {
   return (
     <article
       className={cn(
-        "mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14",
+        "mx-auto w-full min-w-0 max-w-3xl overflow-hidden px-4 py-10 sm:px-6 sm:py-14",
         className
       )}
     >
@@ -50,7 +50,7 @@ export function DocH3({ children, id }: { children: React.ReactNode; id?: string
 
 export function DocLead({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
+    <p className="mt-4 min-w-0 text-base leading-relaxed text-muted-foreground sm:text-lg">
       {children}
     </p>
   );
@@ -58,7 +58,7 @@ export function DocLead({ children }: { children: React.ReactNode }) {
 
 export function DocP({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
+    <p className="mt-4 min-w-0 text-sm leading-relaxed text-muted-foreground sm:text-base">
       {children}
     </p>
   );

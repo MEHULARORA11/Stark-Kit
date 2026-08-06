@@ -85,7 +85,7 @@ export default function GuardrailsPage() {
       <DocH3>Hook Signatures</DocH3>
       <CodeBlock className="mt-4" code={HOOKS_SIGNATURES_CODE} language="typescript" />
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-border">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-border">
         <div className="border-b border-border bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground">
           Hook Reference
         </div>
@@ -95,9 +95,9 @@ export default function GuardrailsPage() {
             ["beforeTool", "Receives the tool name and parsed arguments. Throw an Error to block execution entirely. Return new arguments to override what the model chose. Return nothing to proceed as-is."],
             ["afterTool", "Receives the tool name, its string result, and a boolean indicating if it errored. Return a new string to replace the result the LLM sees. Useful for masking PII or normalizing output."],
           ].map(([hook, desc]) => (
-            <div key={hook} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:gap-6">
+            <div key={hook} className="flex min-w-0 flex-col gap-1 px-4 py-3 sm:flex-row sm:gap-6">
               <code className="shrink-0 font-mono text-xs text-foreground sm:w-32">{hook}</code>
-              <p className="text-muted-foreground">{desc}</p>
+              <p className="min-w-0 text-muted-foreground">{desc}</p>
             </div>
           ))}
         </div>

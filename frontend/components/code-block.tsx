@@ -23,7 +23,7 @@ export function CodeBlock({ code, language = "typescript", className, filename }
   };
 
   return (
-    <div className={cn("group relative rounded-xl overflow-hidden border border-border bg-muted/50", className)}>
+    <div className={cn("group relative min-w-0 w-full rounded-xl overflow-hidden border border-border bg-muted/50", className)}>
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/80">
         <div className="flex items-center gap-2">
@@ -55,7 +55,7 @@ export function CodeBlock({ code, language = "typescript", className, filename }
       {/* Code area */}
       <Highlight theme={themes.vsDark} code={code.trim()} language={language}>
         {({ className, style, tokens, getLineProps, getTokenProps }) => (
-          <pre className={cn("overflow-x-auto p-4 text-sm leading-relaxed", className)} style={style}>
+          <pre className={cn("overflow-x-auto p-3 text-[12px] leading-relaxed sm:p-4 sm:text-sm", className)} style={style}>
             <code className="font-mono text-foreground/90">
               {tokens.map((line, i) => (
                 <div key={i} {...getLineProps({ line })}>
