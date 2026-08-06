@@ -5,6 +5,9 @@ node_modules
 # input
 src/
 
+#frontend
+frontend/
+
 # code coverage
 coverage
 *.lcov
