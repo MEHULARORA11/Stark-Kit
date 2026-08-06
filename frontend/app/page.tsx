@@ -160,6 +160,9 @@ export default function LandingPage() {
               framework for building AI agents. Write your agentic loops once and run them on
               OpenAI, Claude, Gemini, or Mistral — no rewrites, no lock-in.
             </p>
+               <p className="mx-auto mt-4 text-base font-medium text-foreground">
+              a drop-in replacement for OpenAI, Gemini,Anthropic, and Mistral
+            </p>
             <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/stark-kit/docs"
