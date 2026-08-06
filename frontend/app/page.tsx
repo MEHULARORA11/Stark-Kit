@@ -276,7 +276,7 @@ export default function LandingPage() {
                 Switch providers by swapping a single constructor. Your agent code stays the same.
               </p>
             </div>
-            <div className="overflow-hidden rounded-xl border border-border">
+            <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
@@ -325,7 +325,7 @@ export default function LandingPage() {
               Mehul Arora
             </a>
           </p>
-          <div className="flex gap-5">
+          <div className="flex flex-wrap justify-center gap-5">
             <a
               href="https://github.com/MEHULARORA11/Stark-Kit"
               target="_blank"
