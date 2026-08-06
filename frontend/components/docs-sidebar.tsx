@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -82,11 +83,12 @@ const NAV_ITEMS = [
 
 export function DocsSidebar() {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
 
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader className="px-4 py-4">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2" onClick={() => setOpenMobile(false)}>
           <span className="font-heading text-base font-semibold text-sidebar-foreground">
             Stark-Kit
           </span>
@@ -112,7 +114,7 @@ export function DocsSidebar() {
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      render={<Link href={item.href} />}
+                      render={<Link href={item.href} onClick={() => setOpenMobile(false)} />}
                     >
                       <HugeiconsIcon icon={item.icon} className="size-4" strokeWidth={1.5} />
                       <span>{item.title}</span>
