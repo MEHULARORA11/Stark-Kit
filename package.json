@@ -1,5 +1,6 @@
 {
-  "name": "stark-kit",
+  "version": "1.0.2",
+  "name": "@mehularora/stark-kit",
   "author": {
     "name": "Mehul Arora",
     "email": "mehularora505@gmail.com",

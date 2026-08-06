@@ -1,126 +1,95 @@
 # Stark-Kit 🛡️
 
-[![NPM Version](https://img.shields.io/npm/v/stark-kit?color=blue&style=flat-square)](https://www.npmjs.com/package/stark-kit)
-[![License](https://img.shields.io/github/license/MEHULARORA11/Stark-Kit?style=flat-square&color=green)](LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/MEHULARORA11/Stark-Kit/build.yml?style=flat-square&label=build)](https://github.com/MEHULARORA11/Stark-Kit)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?style=flat-square&logo=typescript)](tsconfig.json)
+Stark-Kit is a lightweight, strictly typed, and provider-agnostic TypeScript framework for building AI agents. Write your agentic loops once and run them on OpenAI, Claude, Gemini, or Mistral without changing your core application logic.
 
-**Stark-Kit** is a lightweight, strictly typed, and completely provider-agnostic TypeScript framework for building powerful, reliable AI agents. 
+## Why Stark-Kit?
 
-Write your agentic loops once. Run them on OpenAI, Anthropic (Claude), Google (Gemini), or Mistral seamlessly without changing your core logic.
+Most agent frameworks tightly couple your business logic to a specific provider's SDK, making switching models or providers tedious. Stark-Kit addresses this by introducing a provider-agnostic execution model centered around a unified `CanonicalMessage` interface.
 
----
-
-## 🌟 Key Features
-
-*   🔌 **Provider-Agnostic Core:** Decouple your business logic from specific provider SDKs using a unified `CanonicalMessage` interface.
-*   🛡️ **Strictly Typed Tools:** Register and execute tools with schema validation powered by [Zod](https://zod.dev/).
-*   ⚡ **Real-Time Streaming:** Seamlessly yield text deltas, tool events, and transition states for highly responsive user interfaces.
-*   🚦 **Lifecycle Guardrails:** Intercept, sanitize, or block LLM calls and tool inputs/outputs using async hook filters.
-*   🛑 **Human-in-the-Loop (HITL):** Pause execution flow for sensitive tools, request human approval or parameters adjustment, and resume smoothly.
-*   🐝 **Agent Handoff (Swarm Orchestration):** Route complex user prompts dynamically between specialized sub-agents.
-*   📐 **Structured Outputs:** Force agents to respond strictly matching a Zod schema via automatic output tool injection.
+Key features include:
+*   **Strictly Typed Tools:** Tools are defined with runtime schema validation via Zod.
+*   **Real-Time Streaming:** Seamlessly stream text chunks, tool calls, and execution states to build responsive user interfaces.
+*   **Lifecycle Hooks:** Intercept, sanitize, or block LLM calls and tool inputs/outputs.
+*   **Human-in-the-Loop (HITL):** Pause execution to obtain approval or modify arguments before running sensitive tools.
+*   **Agent Handoffs:** Route conversations between specialized agents to create multi-agent networks.
+*   **Structured Outputs:** Enforce structured JSON replies by binding agents to a Zod schema.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-Stark-Kit decouples the runtime engine from vendor-specific APIs:
+Stark-Kit relies on three main components to keep vendor logic separate from your agent code:
 
-```mermaid
-graph TD
-    User([User Input]) --> RunLoop[Agentic Run Loop<br/>run / runStream]
-    
-    subgraph Stark-Kit Core
-        RunLoop <--> History[(Canonical History)]
-        RunLoop --> Guardrails{Guardrail Hooks}
-        RunLoop --> Tools((Tools))
-        RunLoop --> HITL{HITL Pause}
-    end
-    
-    RunLoop <--> Provider[Provider Interface]
-    
-    subgraph Providers
-        Provider <--> OpenAI[OpenAI Mapper]
-        Provider <--> Claude[Claude Mapper]
-        Provider <--> Gemini[Gemini Mapper]
-        Provider <--> Mistral[Mistral Mapper]
-    end
-    
-    OpenAI <--> OAI_API((OpenAI API))
-    Claude <--> Anthropic_API((Anthropic API))
-    Gemini <--> Gemini_API((Gemini API))
-    Mistral <--> Mistral_API((Mistral API))
-```
+1.  **The Agent:** Defines instructions (system prompt), available tools, runtime parameters (e.g. temperature), lifecycle hooks, and target output schemas.
+2.  **The Provider:** A standard interface implemented by each LLM adapter (OpenAI, Anthropic, Gemini, Mistral). The provider maps Stark-Kit's internal message structure (`CanonicalMessage`) to the provider's native format and returns unified responses.
+3.  **The Run Loop (`run` / `runStream`):** The orchestrator that executes the agent's logic. It manages message history, handles tool calls, coordinates human-in-the-loop pauses, runs lifecycle hooks, and transitions between agents during handoffs.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
-Install `stark-kit` along with `zod`:
-
 ```bash
-bun add stark-kit zod
-# Or use npm, yarn, or pnpm
-# npm install stark-kit zod
+bun add @mehularora/stark-kit zod
 ```
 
-### Basic Agent Example
+### Basic Agent
 
 ```typescript
-import { Agent, run, defineTool, ClaudeProvider } from "stark-kit";
+import "dotenv/config";
+import { Agent, run, defineTool, ClaudeProvider } from "@mehularora/stark-kit";
 import z from "zod";
 
-// 1. Initialize your preferred provider (API keys loaded via env automatically)
+// Initialize a provider (keys are automatically read from environment variables)
 const provider = new ClaudeProvider();
 
-// 2. Define a typed tool with schema validation
+// Define a tool with typed inputs
 const weatherTool = defineTool({
   name: "getWeather",
   description: "Get the current weather for a city.",
   parameters: z.object({
-    city: z.string().describe("The exact name of the city, e.g. Tokyo"),
+    city: z.string().describe("The name of the city, e.g. Tokyo"),
   }),
   execute: async ({ city }) => {
     return `The weather in ${city} is sunny and 22°C.`;
   },
 });
 
-// 3. Configure the Agent
+// Configure the agent
 const agent = new Agent({
   name: "WeatherBot",
   provider,
-  instructions: "You are a helpful weather assistant. Keep responses brief.",
+  instructions: "You are a helpful assistant. Keep answers brief.",
   tools: [weatherTool],
 });
 
-// 4. Execute the loop
+// Execute the run loop
 const response = await run({
   agent,
-  messages: "What's the weather like in Tokyo?",
+  messages: "What's the weather in Tokyo?",
 });
 
 if (response.status === "complete") {
-  console.log(response.content); // "The weather in Tokyo is sunny and 22°C."
+  console.log(response.content);
 }
 ```
 
 ---
 
-## 🧠 Advanced Agentic Patterns
+## Patterns & Examples
 
-### 1. Real-Time Streaming (`runStream`)
+### 1. Streaming
 
-Yield text chunks and lifecycle events (e.g. tool execution status) in real time to build highly interactive UIs.
+Use `runStream` to handle incremental text deltas and execution lifecycle events as they occur.
 
 ```typescript
-import { runStream } from "stark-kit";
+import "dotenv/config";
+import { runStream } from "@mehularora/stark-kit";
 
 const stream = runStream({
   agent,
-  messages: "Tell me a joke and search the weather in Paris.",
+  messages: "Tell me a short story and fetch the weather in Paris.",
 });
 
 for await (const event of stream) {
@@ -131,10 +100,10 @@ for await (const event of stream) {
       }
       break;
     case "tool_start":
-      console.log(`\n[Tool Executing: ${event.toolName}]`);
+      console.log(`\n[Executing: ${event.toolName}]`);
       break;
     case "tool_end":
-      console.log(`[Tool Finished: ${event.toolName} -> success=${!event.isError}]`);
+      console.log(`[Completed: ${event.toolName}]`);
       break;
     case "done":
       console.log("\n\nFinal Answer:", event.result.content);
@@ -145,59 +114,58 @@ for await (const event of stream) {
 
 ### 2. Standardized Tool Outputs (`ToolResult`)
 
-Wrap tool returns in a structured `ToolResult` to handle errors gracefully. Instead of crashing, Stark-Kit detects failures and feeds the error back to the LLM, enabling self-correction.
+By returning a structured `ToolResult` inside a tool execution, you can report errors back to the model for graceful recovery and self-correction instead of throwing runtime errors.
 
 ```typescript
-import { defineTool, ToolResult } from "stark-kit";
+import "dotenv/config";
+import { defineTool, ToolResult } from "@mehularora/stark-kit";
+import z from "zod";
 
-const databaseTool = defineTool({
-  name: "queryDB",
-  description: "Query the system database.",
+const dbQueryTool = defineTool({
+  name: "queryDatabase",
+  description: "Execute read-only SQL queries.",
   parameters: z.object({ sql: z.string() }),
   execute: async ({ sql }): Promise<ToolResult> => {
     try {
-      const data = await db.execute(sql);
+      const data = await db.query(sql);
       return { success: true, data };
     } catch (err) {
-      // The LLM receives this error description and will attempt to rewrite its SQL!
-      return { 
-        success: false, 
-        error: err instanceof Error ? err.message : String(err) 
+      // The LLM receives this error message and attempts to self-correct its query
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err)
       };
     }
   },
 });
 ```
 
-### 3. Guardrail Hooks
+### 3. Lifecycle Hooks (Guardrails)
 
-Hook into key lifecycle events to inspect, sanitize, modify, or block inputs and outputs.
+Inject behavior before LLM generations, before tool runs, or after execution to sanitize input data, redact secrets, or intercept system commands.
 
 ```typescript
-const secureAgent = new Agent({
+const agent = new Agent({
   name: "SecureAgent",
   provider,
-  instructions: "You are a secure system assistant.",
+  instructions: "Handle system lookups.",
   hooks: {
-    // Intercept and sanitize history before calling the LLM
+    // Sanitize user prompt history before invoking the LLM
     beforeChat: async (history) => {
-      // e.g. Redact user PII
       return history.map(msg => ({
         ...msg,
-        content: msg.content ? msg.content.replace(/SSN:\s*\d{3}-\d{2}-\d{4}/g, "SSN: ***-**-****") : null
+        content: msg.content ? msg.content.replace(/api_key=\w+/g, "api_key=REDACTED") : null
       }));
     },
-    // Block or modify arguments before tool execution
+    // Block executions or modify arguments before tool execution
     beforeTool: async (toolName, args) => {
-      if (toolName === "deleteFile" && (args as any).path.includes("/etc")) {
-        throw new Error("Access Denied: Cannot modify system directories.");
+      if (toolName === "deleteDir" && (args as any).path.startsWith("/root")) {
+        throw new Error("Permission Denied: Cannot delete root files.");
       }
     },
-    // Sanitize output returned by a tool before the LLM sees it
+    // Sanitize tool response contents before sending them to the LLM
     afterTool: async (toolName, result, isError) => {
-      if (toolName === "fetchUserData") {
-        return result.replace(/password=\w+/g, "password=REDACTED");
-      }
+      return result.replace(/\b\d{3}-\d{2}-\d{4}\b/g, "***-**-****");
     }
   }
 });
@@ -205,219 +173,184 @@ const secureAgent = new Agent({
 
 ### 4. Human-in-the-Loop (HITL)
 
-Sensitive tools can be configured to pause the run loop. The developer can inspect details, approve, reject, or modify the arguments before resuming.
+Mark tools with `requiresApproval: true` to yield a `requires_action` pause state. Resume the loop after approval, rejection, or argument modification.
 
 ```typescript
-import { isHITLPause, resumeRun, defineTool } from "stark-kit";
+import "dotenv/config";
+import { isHITLPause, resumeRun, defineTool } from "@mehularora/stark-kit";
+import z from "zod";
 
-const transferFundsTool = defineTool({
-  name: "transferFunds",
-  description: "Transfer money to another account.",
-  requiresApproval: true, // 🛑 Pauses the loop
-  parameters: z.object({ amount: z.number(), to: z.string() }),
-  execute: async ({ amount, to }) => {
-    return `Successfully transferred $${amount} to ${to}.`;
-  }
+const sendEmailTool = defineTool({
+  name: "sendEmail",
+  description: "Send an email notification.",
+  requiresApproval: true,
+  parameters: z.object({ to: z.string(), body: z.string() }),
+  execute: async ({ to, body }) => `Email sent to ${to}.`
 });
 
-const agent = new Agent({ name: "BankAgent", provider, instructions: "...", tools: [transferFundsTool] });
-let result = await run({ agent, messages: "Transfer $500 to Bob" });
+const agent = new Agent({ name: "Notifier", provider, instructions: "...", tools: [sendEmailTool] });
+let result = await run({ agent, messages: "Email updates to user@example.com" });
 
 if (isHITLPause(result)) {
   console.log("Pending Approval for:", result.pendingToolCalls);
-  // pendingToolCalls = [{ toolCallId: "call_abc", toolName: "transferFunds", args: { amount: 500, to: "Bob" } }]
   
-  // Resume loop by providing a decision for each pending tool call ID
+  // Resume the loop using the tool call ID
   result = await resumeRun(result, {
-    "call_abc": { action: "approve" } 
-    // Other decisions you can supply:
-    // "call_abc": { action: "reject", reason: "Unauthorized limit exceeded" }
-    // "call_abc": { action: "modify", modifiedArgs: { amount: 100, to: "Bob" } }
+    [result.pendingToolCalls[0].toolCallId]: { action: "approve" }
+    // Or reject: { action: "reject", reason: "Blocked by admin" }
+    // Or modify arguments: { action: "modify", modifiedArgs: { to: "user@example.com", body: "Cleaned content" } }
   });
 }
 ```
 
-### 5. Multi-Agent Swarms & Handoffs
+### 5. Swarm Handoffs
 
-Build Swarm-style agent architectures where a triage agent routes conversation flow to specialized agents dynamically.
+Set up multi-agent networks by allowing agents to transfer execution to one another dynamically.
 
 ```typescript
-import { Agent, run, createHandoffTool } from "stark-kit";
+import "dotenv/config";
+import { Agent, run, createHandoffTool } from "@mehularora/stark-kit";
 
-const billingAgent = new Agent({ name: "BillingAgent", provider, instructions: "Handle refunds." });
-const techAgent = new Agent({ name: "TechAgent", provider, instructions: "Solve technical issues." });
+const billingAgent = new Agent({ name: "BillingAgent", provider, instructions: "Process refunds." });
+const supportAgent = new Agent({ name: "SupportAgent", provider, instructions: "Resolve technical errors." });
 
 const triageAgent = new Agent({
   name: "TriageAgent",
   provider,
-  instructions: "Determine the user's intent and route to the correct agent.",
+  instructions: "Determine intent and route the customer inquiry.",
   tools: [
-    createHandoffTool(billingAgent), // registers "transfer_to_BillingAgent"
-    createHandoffTool(techAgent)     // registers "transfer_to_TechAgent"
+    createHandoffTool(billingAgent),
+    createHandoffTool(supportAgent)
   ]
 });
 
-// Stark-Kit automatically swaps the active agent, imports history, and continues execution.
 const response = await run({
   agent: triageAgent,
-  messages: "I need a refund for my order.",
+  messages: "I need a refund for my last transaction.",
 });
 
 console.log(response.agent.name); // "BillingAgent"
-console.log(response.content);    // Final response from BillingAgent
+console.log(response.content);    // Answer provided by BillingAgent
 ```
 
-### 6. Typed Structured Outputs (`outputType`)
+### 6. Structured Outputs (`outputType`)
 
-Set `outputType` to enforce that your agent returns data matching a Zod schema. Stark-Kit injects a validator tool and forces the agent to use it, preventing arbitrary text formats.
+Provide a Zod schema to force the agent to respond with structured JSON. Stark-Kit sets up the schema constraints and auto-injects final submission logic.
 
 ```typescript
-import { Agent, run } from "stark-kit";
+import "dotenv/config";
+import { Agent, run } from "@mehularora/stark-kit";
 import z from "zod";
 
-const UserProfileSchema = z.object({
-  name: z.string(),
-  age: z.number(),
-  interests: z.array(z.string()),
+const OutputSchema = z.object({
+  sentiment: z.enum(["positive", "negative", "neutral"]),
+  topics: z.array(z.string()),
 });
 
-const profileAgent = new Agent({
-  name: "ProfileBuilder",
+const analyzer = new Agent({
+  name: "Analyzer",
   provider,
-  instructions: "Parse the user message into a profile.",
-  outputType: UserProfileSchema,
+  instructions: "Extract sentiment and topics.",
+  outputType: OutputSchema,
 });
 
 const result = await run({
-  agent: profileAgent,
-  messages: "I am John Doe, 29 years old. I love coding, hiking, and playing chess.",
+  agent: analyzer,
+  messages: "I hate waiting in long lines at the store. It is extremely annoying.",
 });
 
 if (result.status === "complete") {
-  console.log(result.finalOutput);
-  // Output: { name: "John Doe", age: 29, interests: ["coding", "hiking", "playing chess"] }
+  console.log(result.finalOutput); // { sentiment: "negative", topics: ["long lines", "store"] }
 }
 ```
 
 ---
 
-## 📖 API Reference
+## API Reference
 
-### `Agent` Class
-
-The primary orchestration class containing instructions, configurations, and tools.
+### `Agent` Configuration
 
 ```typescript
-import { Agent } from "stark-kit";
+import { Agent } from "@mehularora/stark-kit";
 
-const agent = new Agent(options: IAgentOptions);
+const agent = new Agent({
+  name: "AgentName",
+  instructions: "System prompt instructions.",
+  provider: providerInstance,
+  tools: [],             // Optional
+  maxSteps: 10,          // Optional
+  temperature: 0.7,      // Optional
+  model: "model-name",   // Optional override
+  hooks: {},             // Optional hooks
+  outputType: zSchema    // Optional structured output schema
+});
 ```
 
-#### `IAgentOptions`
+### `defineTool` Signature
 
-| Option | Type | Required | Description |
-| :--- | :--- | :---: | :--- |
-| `name` | `string` | Yes | The name of the agent. Used for identification and handoffs. |
-| `instructions` | `string` | Yes | The agent's system prompt containing behaviors and rules. |
-| `provider` | `Provider` | Yes | An instance of an LLM provider (e.g. `ClaudeProvider`). |
-| `tools` | `IToolOptions[]` | No | An array of tools the agent can execute. |
-| `maxSteps` | `number` | No | Prevents run loops from running indefinitely (Default: `10`). |
-| `temperature` | `number` | No | Temperature setting for the model (typically `0.0` to `2.0`). |
-| `model` | `string` | No | Override the provider's default model for this agent. |
-| `hooks` | `AgentHooks` | No | Pre and post lifecycle filters for guardrails. |
-| `outputType` | `z.ZodType` | No | Zod schema used to enforce structured response output. |
+```typescript
+import { defineTool } from "@mehularora/stark-kit";
+
+const tool = defineTool({
+  name: "tool_name",
+  description: "When to use it.",
+  parameters: z.object({ ... }),
+  execute: async (args) => { ... },
+  requiresApproval: false
+});
+```
+
+### `run` & `runStream` Options
+
+```typescript
+import { run, runStream } from "@mehularora/stark-kit";
+
+const result = await run({
+  agent: agentInstance,
+  messages: "User input query", // Or CanonicalMessage[]
+  maxSteps: 10,
+  model: "override-model-name",
+  temperature: 0.5
+});
+```
 
 ---
 
-### `defineTool` Function
+## Supported Providers
 
-Registers a typed tool that can be understood by the LLM and validated at runtime.
+Stark-Kit reads standard provider keys from environment variables.
 
-```typescript
-import { defineTool } from "stark-kit";
-
-const tool = defineTool(options: IToolOptions);
-```
-
-#### `IToolOptions`
-
-| Option | Type | Required | Description |
-| :--- | :--- | :---: | :--- |
-| `name` | `string` | Yes | Name of the tool. Must be alphanumeric (underscores allowed). |
-| `description` | `string` | Yes | Clear instruction describing when and how to call the tool. |
-| `parameters` | `z.ZodType` | Yes | A Zod schema defining the expected arguments. |
-| `execute` | `(args) => Promise<any>` | Yes | The execution logic. Can return a raw value or a `ToolResult`. |
-| `requiresApproval`| `boolean` | No | Marks the tool as requiring human approval (HITL). |
-
----
-
-### `run` & `runStream` Functions
-
-Kicks off the agentic loop.
-
-```typescript
-import { run, runStream } from "stark-kit";
-
-// Standard run
-const result = await run(options: RunOptions);
-
-// Streaming run
-const stream = runStream(options: RunOptions);
-```
-
-#### `RunOptions`
-
-| Option | Type | Required | Description |
-| :--- | :--- | :---: | :--- |
-| `agent` | `Agent` | Yes | The initial agent that starts the loop. |
-| `messages` | `IMessage[] \| string`| Yes | Initial prompt string or a list of messages. |
-| `maxSteps` | `number` | No | Override default agent limit for steps in this run. |
-| `model` | `string` | No | Override the model for this execution. |
-| `temperature` | `number` | No | Override the temperature for this execution. |
-
----
-
-## 🔌 Supported Providers
-
-Stark-Kit automatically reads environment variables if left unconfigured in code.
-
-| Provider | Import | Env Variable | Default Model |
+| Provider | Adapter Class | Environment Variable | Default Model |
 | :--- | :--- | :--- | :--- |
-| **OpenAI** | `OpenAIProvider` | `OPENAI_API_KEY` | `gpt-4o` |
-| **Anthropic** | `ClaudeProvider` | `ANTHROPIC_API_KEY` | `claude-3-5-sonnet-latest` |
-| **Google** | `GeminiProvider` | `GEMINI_API_KEY` | `gemini-1.5-flash` |
-| **Mistral** | `MistralProvider`| `MISTRAL_API_KEY` | `mistral-large-latest` |
+| OpenAI | `OpenAIProvider` | `OPENAI_API_KEY` | `gpt-4o` |
+| Anthropic | `ClaudeProvider` | `ANTHROPIC_API_KEY` | `claude-3-5-sonnet-latest` |
+| Google | `GeminiProvider` | `GEMINI_API_KEY` | `gemini-1.5-flash` |
+| Mistral | `MistralProvider` | `MISTRAL_API_KEY` | `mistral-large-latest` |
 
-### Custom Providers
+### Custom Provider Adapter
 
-To create a custom provider adapter, implement the `Provider` interface:
+Create custom providers by implementing the `Provider` interface:
 
 ```typescript
-import { Provider, ChatOptions, AIResponse, StreamChunk } from "stark-kit";
-import { CanonicalMessage } from "stark-kit/types/message";
+import { Provider, ChatOptions, AIResponse, StreamChunk } from "@mehularora/stark-kit";
+import { CanonicalMessage } from "@mehularora/stark-kit/types/message";
 
-export class CustomLLMProvider implements Provider {
-  name = "custom-provider";
-  defaultModel = "my-custom-model";
+export class MyCustomProvider implements Provider {
+  name = "custom-llm";
+  defaultModel = "my-llm-v1";
 
-  async chat(
-    messages: CanonicalMessage[],
-    options: ChatOptions
-  ): Promise<AIResponse> {
-    // Call custom API and return unified format
+  async chat(messages: CanonicalMessage[], options: ChatOptions): Promise<AIResponse> {
+    // API request execution logic
   }
 
-  async *chatStream(
-    messages: CanonicalMessage[],
-    options: ChatOptions
-  ): AsyncGenerator<StreamChunk, AIResponse, unknown> {
-    // Yield text chunks
+  async *chatStream(messages: CanonicalMessage[], options: ChatOptions): AsyncGenerator<StreamChunk, AIResponse> {
+    // Streaming execution logic
   }
 }
 ```
 
 ---
 
-## 📜 License
+## License
 
 MIT License. Created by [Mehul Arora](https://www.mehularora.dev).
