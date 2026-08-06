@@ -4,7 +4,9 @@ import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
 import z from "zod";
 
+// Maps canonical messages and tools to and from OpenAI API formats.
 export class OpenAIMapper {
+  // Maps a list of Stark-Kit tools to OpenAI ChatCompletionTool definitions.
   static mapTools(tools: IToolOptions[]): ChatCompletionTool[] {
     return tools.map((tool) => {
       const jsonSchema = z.toJSONSchema(tool.parameters as any) as any;
@@ -29,6 +31,7 @@ export class OpenAIMapper {
     });
   }
 
+  // Maps canonical message history into OpenAI's native message param formats.
   static toOpenAIMessages(history: CanonicalMessage[]): ChatCompletionMessageParam[] {
     return history.map((msg): ChatCompletionMessageParam => {
       switch (msg.role) {
@@ -66,6 +69,7 @@ export class OpenAIMapper {
     });
   }
 
+  // Normalizes an OpenAI response choice back to a canonical AIResponse.
   static fromOpenAIChoice(choice: { content?: string | null; tool_calls?: any[] } | undefined): AIResponse {
     const toolCalls: { id: string; name: string; args: unknown }[] = [];
 

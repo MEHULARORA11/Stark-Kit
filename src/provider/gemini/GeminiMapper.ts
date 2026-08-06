@@ -3,7 +3,9 @@ import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
 import z from "zod";
 
+// Maps canonical messages and tools to and from Google Gemini API structures.
 export class GeminiMapper {
+  // Maps Stark-Kit tools to Gemini function declarations.
   static mapTools(tools: IToolOptions[]): any[] {
     if (!tools || tools.length === 0) return [];
     
@@ -40,6 +42,7 @@ export class GeminiMapper {
     return [{ functionDeclarations }];
   }
 
+  // Maps canonical history into Gemini content formats.
   static toGeminiContents(history: CanonicalMessage[]): { systemInstruction?: string; contents: any[] } {
     let systemInstruction: string | undefined;
     const contents: any[] = [];
@@ -114,10 +117,9 @@ export class GeminiMapper {
                 parsedArgs = { ...(call.args ?? {}) };
               }
 
-              // Extract the hidden thought signature we injected earlier
               const ts = parsedArgs._thoughtSignature;
               if (ts) {
-                delete parsedArgs._thoughtSignature; // Remove it so it doesn't get passed to the actual tool
+                delete parsedArgs._thoughtSignature;
               }
 
               const partToPush: any = {
@@ -127,7 +129,6 @@ export class GeminiMapper {
                 },
               };
 
-              // Gemini 3.x strictly enforces that we echo the signature back exactly where we found it
               if (ts) {
                 partToPush.thoughtSignature = ts;
                 partToPush.thought_signature = ts;
@@ -158,6 +159,7 @@ export class GeminiMapper {
     return { systemInstruction, contents };
   }
 
+  // Parses a Gemini response object back into canonical AIResponse format.
   static fromGeminiResponse(response: any): AIResponse {
     const candidate = response.response?.candidates?.[0] ?? response.candidates?.[0];
     const parts = candidate?.content?.parts || [];
@@ -175,8 +177,6 @@ export class GeminiMapper {
           args = args ? { ...args } : {};
         }
 
-        // Gemini 3.x passes down a thought_signature. We MUST save it to survive the framework loop.
-        // We safely inject it into the args payload.
         const ts = part.thoughtSignature || part.thought_signature;
         if (ts) {
           args._thoughtSignature = ts;

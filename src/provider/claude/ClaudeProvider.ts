@@ -5,16 +5,19 @@ import type { CanonicalMessage } from "../../types/message.js";
 import { ClaudeMapper } from "./ClaudeMapper.js";
 import { config } from "../../utils/config.js";
 
+// Options to configure the Claude LLM Provider.
 export interface ClaudeProviderOptions {
   apiKey?: string;
   model?: string;
 }
 
+// Provider adapter for the Anthropic Claude API.
 export class ClaudeProvider implements Provider {
   name = "claude";
   model?: string;
   private client: Anthropic;
 
+  // Initializes a new instance of the ClaudeProvider class.
   constructor(options: ClaudeProviderOptions = {}) {
     const apiKey = options.apiKey ?? config.ANTHROPIC_API_KEY;
 
@@ -28,6 +31,7 @@ export class ClaudeProvider implements Provider {
     this.model = options.model;
   }
 
+  // Sends the message history to the Claude API and returns the canonical response.
   async chat(
     history: CanonicalMessage[],
     tools: IToolOptions[] = [],
@@ -43,13 +47,11 @@ export class ClaudeProvider implements Provider {
     const { system, messages: claudeMessages } = ClaudeMapper.toClaudeMessages(history);
     const claudeTools = ClaudeMapper.mapTools(tools);
 
-    // Map provider-agnostic toolChoice to Claude's tool_choice format
     let toolChoice: any = undefined;
     if (options.toolChoice && claudeTools.length > 0) {
       if (options.toolChoice === "auto") {
         toolChoice = { type: "auto" };
       } else if (options.toolChoice === "required") {
-        // Claude's "any" means the model MUST call at least one tool
         toolChoice = { type: "any" };
       } else if (typeof options.toolChoice === "object") {
         toolChoice = { type: "tool", name: options.toolChoice.name };
@@ -69,11 +71,7 @@ export class ClaudeProvider implements Provider {
     return ClaudeMapper.fromClaudeResponse(response);
   }
 
-  /**
-   * Streaming variant of `chat`. Yields provider-agnostic `StreamChunk`
-   * objects as they arrive from Claude's streaming API. The final chunk is
-   * always `{ type: "done", response }` carrying the assembled AIResponse.
-   */
+  // Sends message history to the Claude API and yields streaming response chunks.
   async *chatStream(
     history: CanonicalMessage[],
     tools: IToolOptions[] = [],
@@ -89,7 +87,6 @@ export class ClaudeProvider implements Provider {
     const { system, messages: claudeMessages } = ClaudeMapper.toClaudeMessages(history);
     const claudeTools = ClaudeMapper.mapTools(tools);
 
-    // Map provider-agnostic toolChoice to Claude's tool_choice format
     let toolChoiceStream: any = undefined;
     if (options.toolChoice && claudeTools.length > 0) {
       if (options.toolChoice === "auto") {

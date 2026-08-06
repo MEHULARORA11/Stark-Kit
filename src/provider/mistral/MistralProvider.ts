@@ -5,16 +5,19 @@ import type { CanonicalMessage } from "../../types/message.js";
 import { MistralMapper } from "./MistralMapper.js";
 import { config } from "../../utils/config.js";
 
+// Options to configure the Mistral LLM Provider.
 export interface MistralProviderOptions {
   apiKey?: string;
   model?: string;
 }
 
+// Provider adapter for the Mistral API.
 export class MistralProvider implements Provider {
   name = "mistral";
   model?: string;
   private client: Mistral;
 
+  // Initializes a new instance of the MistralProvider class.
   constructor(options: MistralProviderOptions = {}) {
     const apiKey = options.apiKey ?? config.MISTRAL_API_KEY;
 
@@ -28,6 +31,7 @@ export class MistralProvider implements Provider {
     this.model = options.model;
   }
 
+  // Sends the message history to the Mistral API and returns the canonical response.
   async chat(
     history: CanonicalMessage[],
     tools: IToolOptions[] = [],
@@ -43,13 +47,11 @@ export class MistralProvider implements Provider {
     const mistralTools = MistralMapper.mapTools(tools);
     const mistralMessages = MistralMapper.toMistralMessages(history);
 
-    // Map provider-agnostic toolChoice to Mistral's toolChoice format
     let toolChoice: any = undefined;
     if (options.toolChoice && mistralTools.length > 0) {
       if (options.toolChoice === "auto") {
         toolChoice = "auto";
       } else if (options.toolChoice === "required") {
-        // Mistral's "any" means the model MUST call at least one tool
         toolChoice = "any";
       } else if (typeof options.toolChoice === "object") {
         toolChoice = {
@@ -71,6 +73,7 @@ export class MistralProvider implements Provider {
     return MistralMapper.fromMistralResponse(response);
   }
 
+  // Sends message history to the Mistral API and yields streaming response chunks.
   async *chatStream(
     history: CanonicalMessage[],
     tools: IToolOptions[] = [],
@@ -95,7 +98,6 @@ export class MistralProvider implements Provider {
     }
     const toolCallsMap = new Map<number, ActiveToolCall>();
 
-    // Map provider-agnostic toolChoice to Mistral's toolChoice format
     let toolChoiceStream: any = undefined;
     if (options.toolChoice && mistralTools.length > 0) {
       if (options.toolChoice === "auto") {
@@ -128,7 +130,6 @@ export class MistralProvider implements Provider {
         const delta = choice.delta;
         if (!delta) continue;
 
-        // Handle text delta
         if (delta.content) {
           let textDelta = "";
           if (typeof delta.content === "string") {
@@ -145,7 +146,6 @@ export class MistralProvider implements Provider {
           }
         }
 
-        // Handle tool calls delta
         const toolCallsDelta = delta.toolCalls ?? delta.tool_calls;
         if (Array.isArray(toolCallsDelta)) {
           for (let i = 0; i < toolCallsDelta.length; i++) {
@@ -184,7 +184,6 @@ export class MistralProvider implements Provider {
         }
       }
 
-      // Finalize tool calls
       const toolCalls: { id: string; name: string; args: unknown }[] = [];
       for (const [, activeCall] of toolCallsMap) {
         let parsedArgs: unknown = {};

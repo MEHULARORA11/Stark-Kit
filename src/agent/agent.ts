@@ -1,9 +1,9 @@
-// src/agent/Agent.ts
 import type { Provider } from "../provider/provider.js";
 import type { IToolOptions } from "../types/tools.js";
 import type { IAgentOptions, AgentHooks } from "../types/agent.js";
 import type { z } from "zod";
 
+// Represents an agent configured with a provider, instructions, and tools.
 export class Agent {
   public name: string;
   public instructions: string;
@@ -11,10 +11,11 @@ export class Agent {
   public tools: IToolOptions[];
   public maxSteps: number;
   public temperature?: number;
-  public model?: string; // means now it's type is string | undefined
+  public model?: string;
   public hooks: AgentHooks;
   public outputType?: z.ZodType;
 
+  // Initializes a new instance of the Agent class.
   constructor(options: IAgentOptions) {
     this.name = options.name || "DefaultAgent";
     this.instructions = options.instructions;

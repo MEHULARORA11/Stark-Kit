@@ -1,10 +1,11 @@
-// src/provider/mistral/MistralMapper.ts
 import type { IToolOptions } from "../../types/tools.js";
 import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
 import z from "zod";
 
+// Maps canonical models and messages to and from Mistral API formats.
 export class MistralMapper {
+  // Maps a list of Stark-Kit tools to Mistral API tool definitions.
   static mapTools(tools: IToolOptions[]): any[] {
     return tools.map((tool) => {
       const jsonSchema = z.toJSONSchema(tool.parameters as any) as any;
@@ -29,6 +30,7 @@ export class MistralMapper {
     });
   }
 
+  // Maps canonical message history into Mistral-compliant request message array format.
   static toMistralMessages(history: CanonicalMessage[]): any[] {
     return history.map((msg) => {
       if (msg.role === "tool") {
@@ -36,7 +38,6 @@ export class MistralMapper {
           role: "tool",
           name: (msg as any).name || "tool_result",
           content: typeof msg.result.content === "string" ? msg.result.content : JSON.stringify(msg.result.content ?? ""),
-          // FIX: Mistral SDK requires camelCase toolCallId
           toolCallId: msg.result.toolCallId,
         };
       }
@@ -44,7 +45,6 @@ export class MistralMapper {
       if (msg.role === "assistant" && msg.toolCalls?.length) {
         const assistantMsg: any = {
           role: "assistant",
-          // FIX: Mistral SDK requires camelCase toolCalls
           toolCalls: msg.toolCalls.map((call) => ({
             id: call.id,
             type: "function",
@@ -55,7 +55,6 @@ export class MistralMapper {
           })),
         };
 
-        // FIX: Mistral API requires content to be null if there is no text being sent alongside the tool calls
         assistantMsg.content = msg.content ? msg.content : null;
 
         return assistantMsg;
@@ -68,11 +67,11 @@ export class MistralMapper {
     });
   }
 
+  // Normalizes a Mistral API response back to a canonical AIResponse.
   static fromMistralResponse(response: any): AIResponse {
     const choice = response.choices?.[0];
     const message = choice?.message;
 
-    // Gracefully handle both formats depending on the Mistral SDK version
     const rawToolCalls = message?.toolCalls || message?.tool_calls || [];
     const toolCalls: { id: string; name: string; args: unknown }[] = [];
 

@@ -5,16 +5,19 @@ import type { CanonicalMessage } from "../../types/message.js";
 import { OpenAIMapper } from "./OpenAIMapper.js";
 import { config } from "../../utils/config.js";
 
+// Options to configure the OpenAI LLM Provider.
 export interface OpenAIProviderOptions {
   apiKey?: string;
   model?: string;
 }
 
+// Provider adapter for the OpenAI API.
 export class OpenAIProvider implements Provider {
   name = "openai";
   model?: string;
   private client: OpenAI;
 
+  // Initializes a new instance of the OpenAIProvider class.
   constructor(options: OpenAIProviderOptions = {}) {
     const apiKey = options.apiKey ?? config.OPENAI_API_KEY;
 
@@ -28,6 +31,7 @@ export class OpenAIProvider implements Provider {
     this.model = options.model;
   }
 
+  // Sends the message history to the OpenAI API and returns the canonical response.
   async chat(
     history: CanonicalMessage[],
     tools: IToolOptions[] = [],
@@ -43,7 +47,6 @@ export class OpenAIProvider implements Provider {
     const openaiTools = OpenAIMapper.mapTools(tools);
     const openaiMessages = OpenAIMapper.toOpenAIMessages(history);
 
-    // Map provider-agnostic toolChoice to OpenAI's tool_choice format
     let toolChoice: any = undefined;
     if (options.toolChoice && openaiTools.length > 0) {
       if (options.toolChoice === "auto") {
@@ -71,11 +74,7 @@ export class OpenAIProvider implements Provider {
     return OpenAIMapper.fromOpenAIChoice(choice);
   }
 
-  /**
-   * Streaming variant of `chat`. Yields provider-agnostic `StreamChunk`
-   * objects as text and tool call deltas arrive from OpenAI.
-   * Assembles the final `AIResponse` once the stream finishes.
-   */
+  // Sends message history to the OpenAI API and yields streaming response chunks.
   async *chatStream(
     history: CanonicalMessage[],
     tools: IToolOptions[] = [],
@@ -91,7 +90,6 @@ export class OpenAIProvider implements Provider {
     const openaiTools = OpenAIMapper.mapTools(tools);
     const openaiMessages = OpenAIMapper.toOpenAIMessages(history);
 
-    // Map provider-agnostic toolChoice to OpenAI's tool_choice format
     let toolChoiceStream: any = undefined;
     if (options.toolChoice && openaiTools.length > 0) {
       if (options.toolChoice === "auto") {
@@ -129,7 +127,6 @@ export class OpenAIProvider implements Provider {
       const delta = choice.delta;
       if (!delta) continue;
 
-      // Yield text delta if present
       if (delta.content) {
         if (accumulatedContent === null) {
           accumulatedContent = "";
@@ -138,7 +135,6 @@ export class OpenAIProvider implements Provider {
         yield { type: "text", delta: delta.content };
       }
 
-      // Handle incremental tool call deltas
       if (delta.tool_calls) {
         for (const tcDelta of delta.tool_calls) {
           const index = tcDelta.index;
@@ -175,7 +171,6 @@ export class OpenAIProvider implements Provider {
       }
     }
 
-    // Yield tool_call_done for all completed tool calls
     const finalToolCalls: { id: string; name: string; args: unknown }[] = [];
 
     for (const toolCall of toolCallsByIndex.values()) {
@@ -200,7 +195,6 @@ export class OpenAIProvider implements Provider {
       });
     }
 
-    // Yield final done chunk carrying full AIResponse
     const response: AIResponse = {
       content: accumulatedContent,
       toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined,

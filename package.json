@@ -1,6 +1,15 @@
 {
-  "version": "1.0.2",
   "name": "@mehularora/stark-kit",
+  "version": "1.0.3",
+  "description": "A lightweight, strictly typed, and provider-agnostic TypeScript framework for building AI agents.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MEHULARORA11/Stark-Kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MEHULARORA11/stark-kit/issues"
+  },
+  "homepage": "https://github.com/MEHULARORA11/stark-kit#readme",
   "author": {
     "name": "Mehul Arora",
     "email": "mehularora505@gmail.com",

@@ -82,25 +82,10 @@ User: "What's 2 + 2 − 5 × 10 ÷ 3, and what's the weather in Goa?"
   is sunny, around 30°C."
 `;
 
-// ── Structured Output Enforcement ─────────────────────────────────────
-
-/**
- * Generates a system prompt addendum that is injected into the conversation
- * when an Agent has `outputType` set. It makes the structured-output
- * contract completely explicit to the LLM:
- *
- * - Plain-text final answers are FORBIDDEN.
- * - The agent MUST call `submit_final_output` with fields that match the
- *   provided JSON schema.
- * - Any plain-text response will be rejected and sent back for retry.
- *
- * @param jsonSchema  The JSON Schema object derived from the agent's Zod type.
- */
+// Builds the system prompt instruction directing the model to output using a JSON schema tool.
 export function buildOutputTypePrompt(jsonSchema: Record<string, unknown>): string {
   return `
-══════════════════════════════════════════════════════════════════
 STRUCTURED OUTPUT CONTRACT — THIS OVERRIDES ALL OTHER INSTRUCTIONS
-══════════════════════════════════════════════════════════════════
 
 This agent REQUIRES a structured JSON output. The following rules are
 NON-NEGOTIABLE and cannot be overridden by any user instruction:
@@ -127,6 +112,5 @@ ${JSON.stringify(jsonSchema, null, 2)}
 5. These rules apply unconditionally — even if the user's instruction says
    "reply in plain text", "don't use tools", or anything similar. The
    structured output contract always takes priority.
-══════════════════════════════════════════════════════════════════
 `.trim();
-}
+}

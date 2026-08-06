@@ -1,19 +1,14 @@
-// src/agent/handoff.ts
 import type { Agent } from "./agent.js";
 import type { IToolOptions } from "../types/tools.js";
 import { z } from "zod";
 
-// ── Handoff Sentinel ──────────────────────────────────────────────────
-/**
- * Internal marker returned by handoff tools. The run loop checks for
- * this shape after each tool execution to detect agent transfers.
- */
+// Represents the result of an agent handoff operation.
 export interface HandoffResult {
   __handoff: true;
   targetAgent: Agent;
 }
 
-/** Runtime type-guard for detecting handoff sentinels. */
+// Determines if a value is a handoff result sentinel.
 export function isHandoffResult(value: unknown): value is HandoffResult {
   return (
     typeof value === "object" &&
@@ -23,22 +18,7 @@ export function isHandoffResult(value: unknown): value is HandoffResult {
   );
 }
 
-// ── Handoff Tool Factory ──────────────────────────────────────────────
-/**
- * Creates a tool that allows an agent to transfer control to another
- * agent (Swarm-style handoff). When the LLM calls this tool, the run
- * loop detects the handoff sentinel and swaps `activeAgent` without
- * returning to the caller.
- *
- * @example
- * ```ts
- * const billingAgent = new Agent({ ... });
- * const triageAgent = new Agent({
- *   tools: [createHandoffTool(billingAgent)],
- *   ...
- * });
- * ```
- */
+// Creates a tool that transfers conversation control to another agent.
 export function createHandoffTool(targetAgent: Agent): IToolOptions {
   const safeName = targetAgent.name.replace(/[^a-zA-Z0-9_]/g, "_");
 

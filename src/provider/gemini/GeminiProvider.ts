@@ -5,16 +5,19 @@ import type { CanonicalMessage } from "../../types/message.js";
 import { GeminiMapper } from "./GeminiMapper.js";
 import { config } from "../../utils/config.js";
 
+// Options to configure the Gemini LLM Provider.
 export interface GeminiProviderOptions {
   apiKey?: string;
   model?: string;
 }
 
+// Provider adapter for the Google Gemini API.
 export class GeminiProvider implements Provider {
   name = "gemini";
   model?: string;
   private ai: GoogleGenerativeAI;
 
+  // Initializes a new instance of the GeminiProvider class.
   constructor(options: GeminiProviderOptions = {}) {
     const apiKey = options.apiKey ?? config.GEMINI_API_KEY;
 
@@ -28,6 +31,7 @@ export class GeminiProvider implements Provider {
     this.model = options.model;
   }
 
+  // Sends the message history to the Gemini API and returns the canonical response.
   async chat(
     history: CanonicalMessage[],
     tools: IToolOptions[] = [],
@@ -43,13 +47,11 @@ export class GeminiProvider implements Provider {
     const { systemInstruction, contents } = GeminiMapper.toGeminiContents(history);
     const geminiTools = GeminiMapper.mapTools(tools);
 
-    // Map provider-agnostic toolChoice to Gemini's toolConfig format
     let toolConfig: any = undefined;
     if (options.toolChoice && geminiTools.length > 0) {
       if (options.toolChoice === "auto") {
         toolConfig = { functionCallingConfig: { mode: "AUTO" } };
       } else if (options.toolChoice === "required") {
-        // Gemini "ANY" means the model MUST call one of the provided functions
         toolConfig = { functionCallingConfig: { mode: "ANY" } };
       } else if (typeof options.toolChoice === "object") {
         toolConfig = {
@@ -76,6 +78,7 @@ export class GeminiProvider implements Provider {
     return GeminiMapper.fromGeminiResponse(response);
   }
 
+  // Sends message history to the Gemini API and yields streaming response chunks.
   async *chatStream(
     history: CanonicalMessage[],
     tools: IToolOptions[] = [],
@@ -91,7 +94,6 @@ export class GeminiProvider implements Provider {
     const { systemInstruction, contents } = GeminiMapper.toGeminiContents(history);
     const geminiTools = GeminiMapper.mapTools(tools);
 
-    // Map provider-agnostic toolChoice to Gemini's toolConfig format
     let toolConfigStream: any = undefined;
     if (options.toolChoice && geminiTools.length > 0) {
       if (options.toolChoice === "auto") {

@@ -1,4 +1,3 @@
-// src/agent/run.ts
 import type { Agent } from "./agent.js";
 import type {
   CanonicalMessage,
@@ -12,43 +11,37 @@ import { isHandoffResult } from "./handoff.js";
 import { buildOutputTypePrompt } from "../utils/prompt.js";
 import z from "zod";
 
-// ═══════════════════════════════════════════════════════════════════════
-//  Public Types
-// ═══════════════════════════════════════════════════════════════════════
-
+// Options for running the agent loop.
 export interface RunOptions {
   agent: Agent;
   messages: IMessage[] | string;
   maxSteps?: number;
-  /** Override the Agent's default model/temperature for this run only. */
   model?: string;
   temperature?: number;
 }
 
+// Represents the successful completion of an agent run.
 export interface RunResult {
   status: "complete";
   content: string | null;
   history: CanonicalMessage[];
-  /** The agent that produced the final answer (may differ from input after handoffs). */
   agent: Agent;
-  /** The parsed structured output, if the Agent had an outputType defined. */
   finalOutput?: any;
 }
 
-// ── HITL Types ────────────────────────────────────────────────────────
-
+// Represents a tool call that is pending human approval.
 export interface PendingToolCall {
   toolCallId: string;
   toolName: string;
   args: unknown;
 }
 
+// Represents a paused run state awaiting human-in-the-loop action.
 export interface HITLPause {
   status: "requires_action";
   pendingToolCalls: PendingToolCall[];
   history: CanonicalMessage[];
   agent: Agent;
-  /** @internal — opaque state needed by resumeRun */
   _remainingToolCalls: ToolCall[];
   _processedResults: Array<{
     toolCallId: string;
@@ -63,7 +56,7 @@ export interface HITLPause {
 
 export type RunResultOrPause = RunResult | HITLPause;
 
-/** Runtime type-guard for distinguishing HITL pauses from completed runs. */
+// Determines if a run result is currently in a paused state.
 export function isHITLPause(result: RunResultOrPause): result is HITLPause {
   return result.status === "requires_action";
 }
@@ -73,21 +66,16 @@ export type HITLDecision =
   | { action: "reject"; reason?: string }
   | { action: "modify"; modifiedArgs: Record<string, unknown> };
 
-// ── Streaming Types ───────────────────────────────────────────────────
-
 export type RunStreamEvent =
   | { type: "chunk"; chunk: StreamChunk }
   | { type: "tool_start"; toolName: string; args: unknown }
   | { type: "tool_end"; toolName: string; result: string; isError: boolean }
   | { type: "handoff"; fromAgent: string; toAgent: string }
-  | { type: "step_complete"; stepNumber: number }
+  | { type: "step_complete", stepNumber: number }
   | { type: "hitl_pause"; pause: HITLPause }
   | { type: "done"; result: RunResult };
 
-// ═══════════════════════════════════════════════════════════════════════
-//  run() — Standard Agentic Loop
-// ═══════════════════════════════════════════════════════════════════════
-
+// Executes the agent run loop.
 export async function run({
   agent,
   messages,
@@ -97,16 +85,10 @@ export async function run({
 }: RunOptions): Promise<RunResultOrPause> {
   const effectiveMaxSteps = maxSteps ?? agent.maxSteps;
 
-  // Initialize history with the Agent's system instructions + user input.
-  // History is 100% canonical from here on -- no provider-native shapes
-  // ever get pushed into it. Providers only ever see it via chat().
   const history: CanonicalMessage[] = [
     { role: "system", content: agent.instructions },
   ];
 
-  // ── Structured Output Contract injection ──────────────────────────
-  // When outputType is set, inject a strong system directive BEFORE the
-  // user message so the LLM sees the contract at the top of every context.
   if (agent.outputType) {
     const jsonSchema = z.toJSONSchema(agent.outputType as any) as Record<string, unknown>;
     history.push({
@@ -121,30 +103,22 @@ export async function run({
     history.push(...messages);
   }
 
-  // Generic generation knobs -- run() has no idea which provider is
-  // underneath, it just forwards whatever the caller/Agent configured.
   const chatOptions: ChatOptions = {
     model: model ?? agent.model,
     temperature: temperature ?? agent.temperature,
-    // When outputType is active, force the provider to call a tool so the
-    // LLM cannot escape with a plain-text reply.
     toolChoice: agent.outputType ? "required" : undefined,
   };
 
   return _runLoop(agent, history, 0, effectiveMaxSteps, chatOptions);
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-//  resumeRun() — Continue from an HITL Pause
-// ═══════════════════════════════════════════════════════════════════════
-
+// Resumes an agent run loop that was paused for human-in-the-loop validation.
 export async function resumeRun(
   pause: HITLPause,
   decisions: Record<string, HITLDecision>
 ): Promise<RunResultOrPause> {
   const { history, agent, _remainingToolCalls, _processedResults, _stepCount, _maxSteps, _chatOptions } = pause;
 
-  // Process each pending tool call according to the user's decision
   for (const toolCall of _remainingToolCalls) {
     const decision = decisions[toolCall.id];
 
@@ -162,11 +136,9 @@ export async function resumeRun(
       continue;
     }
 
-    // Determine effective args
     const effectiveArgs =
       decision.action === "modify" ? decision.modifiedArgs : toolCall.args;
 
-    // Find and execute the tool
     const tool = agent.tools.find((t) => t.name === toolCall.name);
     if (!tool) {
       _processedResults.push({
@@ -187,7 +159,6 @@ export async function resumeRun(
     });
   }
 
-  // Push all tool results into history
   for (const result of _processedResults) {
     history.push({
       role: "tool",
@@ -200,14 +171,10 @@ export async function resumeRun(
     });
   }
 
-  // Continue the agentic loop
   return _runLoop(agent, history, _stepCount, _maxSteps, _chatOptions);
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-//  runStream() — Streaming Agentic Loop
-// ═══════════════════════════════════════════════════════════════════════
-
+// Runs the agentic loop returning an async stream generator of run events.
 export async function* runStream({
   agent,
   messages,
@@ -221,7 +188,6 @@ export async function* runStream({
     { role: "system", content: agent.instructions },
   ];
 
-  // ── Structured Output Contract injection ──────────────────────────
   if (agent.outputType) {
     const jsonSchema = z.toJSONSchema(agent.outputType as any) as Record<string, unknown>;
     history.push({
@@ -239,7 +205,6 @@ export async function* runStream({
   const chatOptions: ChatOptions = {
     model: model ?? agent.model,
     temperature: temperature ?? agent.temperature,
-    // Force tool calling when outputType is active
     toolChoice: agent.outputType ? "required" : undefined,
   };
 
@@ -250,7 +215,6 @@ export async function* runStream({
     stepCount++;
     console.log(`🤖 [${activeAgent.name}] Thinking (Step ${stepCount}/${effectiveMaxSteps})...`);
 
-    // ── beforeChat guardrail ──
     let effectiveHistory = history;
     if (activeAgent.hooks.beforeChat) {
       try {
@@ -263,12 +227,10 @@ export async function* runStream({
       }
     }
 
-    // ── Call the provider (streaming or fallback) ──
     let aiResponse: AIResponse;
     const effectiveTools = _getEffectiveTools(activeAgent);
 
     if (activeAgent.provider.chatStream) {
-      // Streaming path — yield chunks to the caller in real-time
       let assembledResponse: AIResponse | undefined;
       const stream = activeAgent.provider.chatStream(effectiveHistory, effectiveTools, chatOptions);
 
@@ -281,23 +243,16 @@ export async function* runStream({
 
       aiResponse = assembledResponse ?? { content: null };
     } else {
-      // Non-streaming fallback
       aiResponse = await activeAgent.provider.chat(effectiveHistory, effectiveTools, chatOptions);
     }
 
-    // Store the canonical assistant turn
     history.push({
       role: "assistant",
       content: aiResponse.content,
       toolCalls: aiResponse.toolCalls,
     });
 
-    // No tools called -> final answer (or rejection when outputType is set)
     if (!aiResponse.toolCalls || aiResponse.toolCalls.length === 0) {
-      // ── Strict outputType enforcement ──────────────────────────────
-      // If this agent requires structured output, a plain-text reply is
-      // invalid. Push a correction into history and retry the loop so the
-      // LLM is forced to call submit_final_output.
       if (activeAgent.outputType) {
         history.push({
           role: "system",
@@ -307,7 +262,7 @@ export async function* runStream({
             "Call 'submit_final_output' now with all required fields populated.",
         });
         yield { type: "step_complete", stepNumber: stepCount };
-        continue; // retry — do NOT return
+        continue;
       }
 
       const result: RunResult = {
@@ -320,7 +275,6 @@ export async function* runStream({
       return;
     }
 
-    // ── Process tool calls ──
     const hitlPending: ToolCall[] = [];
     const processedResults: Array<{
       toolCallId: string;
@@ -331,14 +285,11 @@ export async function* runStream({
     let handoffOccurred = false;
 
     for (const toolCall of aiResponse.toolCalls) {
-      // ── Structured Output Intercept ──
       if (activeAgent.outputType && toolCall.name === "submit_final_output") {
         const parsed = activeAgent.outputType.safeParse(toolCall.args);
         if (parsed.success) {
           const finalResult: RunResult = {
             status: "complete",
-            // Serialize the structured output into content so callers that
-            // read result.content always get the real answer, not null.
             content: JSON.stringify(parsed.data),
             history,
             agent: activeAgent,
@@ -364,7 +315,6 @@ export async function* runStream({
 
       const tool = _getEffectiveTools(activeAgent).find((t) => t.name === toolCall.name);
 
-      // HITL check
       if (tool?.requiresApproval) {
         hitlPending.push(toolCall);
         continue;
@@ -381,7 +331,6 @@ export async function* runStream({
 
       const execResult = await _executeTool(tool, toolCall.args, toolCall.name, activeAgent);
 
-      // Handoff detection
       if (execResult.rawResult && isHandoffResult(execResult.rawResult)) {
         const previousName = activeAgent.name;
         activeAgent = execResult.rawResult.targetAgent;
@@ -393,7 +342,6 @@ export async function* runStream({
           isError: false,
         });
 
-        // Push all results so far into history
         for (const result of processedResults) {
           history.push({
             role: "tool",
@@ -407,7 +355,6 @@ export async function* runStream({
         }
         processedResults.length = 0;
 
-        // Inject system context for the new agent
         history.push({
           role: "system",
           content: `[System] Control has been transferred from "${previousName}" to "${activeAgent.name}". New instructions: ${activeAgent.instructions}`,
@@ -425,15 +372,12 @@ export async function* runStream({
       yield { type: "tool_end", toolName: toolCall.name, result: execResult.content, isError: execResult.isError };
     }
 
-    // If handoff occurred, skip HITL/result-push — loop continues with new agent
     if (handoffOccurred) {
       yield { type: "step_complete", stepNumber: stepCount };
       continue;
     }
 
-    // HITL pause
     if (hitlPending.length > 0) {
-      // Push the non-HITL results we already processed
       for (const result of processedResults) {
         history.push({
           role: "tool",
@@ -465,7 +409,6 @@ export async function* runStream({
       return;
     }
 
-    // Push results into history
     for (const result of processedResults) {
       history.push({
         role: "tool",
@@ -484,10 +427,7 @@ export async function* runStream({
   throw new Error(`Agent '${activeAgent.name}' exceeded maximum execution steps (${effectiveMaxSteps}).`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-//  _runLoop() — Internal Agentic Loop (shared by run + resumeRun)
-// ═══════════════════════════════════════════════════════════════════════
-
+// Internal loop executing consecutive agent reasoning and action execution.
 async function _runLoop(
   initialAgent: Agent,
   history: CanonicalMessage[],
@@ -502,7 +442,6 @@ async function _runLoop(
     stepCount++;
     console.log(`🤖 [${activeAgent.name}] Thinking (Step ${stepCount}/${maxSteps})...`);
 
-    // ── beforeChat guardrail ──────────────────────────────────────
     let effectiveHistory: CanonicalMessage[] = history;
     if (activeAgent.hooks.beforeChat) {
       try {
@@ -510,17 +449,14 @@ async function _runLoop(
         if (modified) effectiveHistory = modified;
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        // Inject a system correction so the LLM sees the guardrail error
         history.push({
           role: "system",
           content: `[Guardrail Error] beforeChat hook threw: ${errMsg}`,
         });
-        // Skip this LLM call and let the loop retry with the error context
         continue;
       }
     }
 
-    // ── Call the provider ─────────────────────────────────────────
     const effectiveTools = _getEffectiveTools(activeAgent);
     const aiResponse = await activeAgent.provider.chat(
       effectiveHistory,
@@ -528,19 +464,12 @@ async function _runLoop(
       chatOptions
     );
 
-    // Store the canonical assistant turn (content + tool calls, if any).
-    // No rawMessage hack needed: the provider's own mapper can rebuild
-    // its native format from this on the next call.
     history.push({
       role: "assistant",
       content: aiResponse.content,
       toolCalls: aiResponse.toolCalls,
     });
 
-    // No tools called -> final answer, we're done.
-    // Exception: if outputType is set, plain-text is INVALID — push a
-    // correction and let the loop retry so the LLM is forced to call
-    // submit_final_output.
     if (!aiResponse.toolCalls || aiResponse.toolCalls.length === 0) {
       if (activeAgent.outputType) {
         history.push({
@@ -550,7 +479,7 @@ async function _runLoop(
             "You MUST call the 'submit_final_output' tool with the required fields — plain-text responses are NOT accepted. " +
             "Call 'submit_final_output' now with all required fields populated.",
         });
-        continue; // retry — do NOT return plain-text
+        continue;
       }
 
       return {
@@ -561,8 +490,6 @@ async function _runLoop(
       };
     }
 
-    // ── Process tool executions ───────────────────────────────────
-    // Separate HITL tools (need approval) from auto-execute tools.
     const hitlPending: ToolCall[] = [];
     const processedResults: Array<{
       toolCallId: string;
@@ -572,14 +499,11 @@ async function _runLoop(
     }> = [];
 
     for (const toolCall of aiResponse.toolCalls) {
-      // ── Structured Output Intercept ──
       if (activeAgent.outputType && toolCall.name === "submit_final_output") {
         const parsed = activeAgent.outputType.safeParse(toolCall.args);
         if (parsed.success) {
           return {
             status: "complete",
-            // Serialize the structured output into content so callers that
-            // read result.content always get the real answer, not null.
             content: JSON.stringify(parsed.data),
             history,
             agent: activeAgent,
@@ -598,13 +522,11 @@ async function _runLoop(
 
       const tool = _getEffectiveTools(activeAgent).find((t) => t.name === toolCall.name);
 
-      // ── HITL check ──
       if (tool?.requiresApproval) {
         hitlPending.push(toolCall);
-        continue; // Don't execute — will pause below
+        continue;
       }
 
-      // ── Missing tool ──
       if (!tool) {
         processedResults.push({
           toolCallId: toolCall.id,
@@ -615,7 +537,6 @@ async function _runLoop(
         continue;
       }
 
-      // ── beforeTool guardrail ──
       let effectiveArgs = toolCall.args;
       if (activeAgent.hooks.beforeTool) {
         try {
@@ -629,18 +550,16 @@ async function _runLoop(
             content: `[Guardrail Error] beforeTool hook blocked execution: ${errMsg}`,
             isError: true,
           });
-          continue; // Skip this tool
+          continue;
         }
       }
 
-      // ── Execute the tool ──
       let content: string;
       let isError = false;
 
       try {
         const rawResult = await tool.execute(effectiveArgs);
 
-        // Handoff detection — before we stringify
         if (isHandoffResult(rawResult)) {
           const previousName = activeAgent.name;
           activeAgent = rawResult.targetAgent;
@@ -648,7 +567,6 @@ async function _runLoop(
           content = `[Handoff] Control transferred to agent: "${activeAgent.name}".`;
           isError = false;
 
-          // Inject a system context swap so the LLM knows the new instructions
           processedResults.push({
             toolCallId: toolCall.id,
             toolName: toolCall.name,
@@ -656,7 +574,6 @@ async function _runLoop(
             isError,
           });
 
-          // Push all results so far into history
           for (const result of processedResults) {
             history.push({
               role: "tool",
@@ -668,22 +585,17 @@ async function _runLoop(
               },
             });
           }
-          processedResults.length = 0; // Clear — already pushed
+          processedResults.length = 0;
 
-          // Inject system context for the new agent
           history.push({
             role: "system",
             content: `[System] Control has been transferred from "${previousName}" to "${activeAgent.name}". New instructions: ${activeAgent.instructions}`,
           });
 
           console.log(`🔄 [Handoff] ${previousName} → ${activeAgent.name}`);
-
-          // Break out of tool processing — the outer while loop will
-          // continue with the new activeAgent
           break;
         }
 
-        // Standardized ToolResult handling
         if (isToolResult(rawResult)) {
           if (rawResult.success) {
             content =
@@ -697,7 +609,6 @@ async function _runLoop(
             isError = true;
           }
         } else {
-          // Legacy raw-value path (backward compatible)
           content = typeof rawResult === "string" ? rawResult : JSON.stringify(rawResult);
         }
       } catch (err) {
@@ -707,7 +618,6 @@ async function _runLoop(
         isError = true;
       }
 
-      // ── afterTool guardrail ──
       if (activeAgent.hooks.afterTool) {
         try {
           const modified = await activeAgent.hooks.afterTool(toolCall.name, content, isError);
@@ -727,9 +637,7 @@ async function _runLoop(
       });
     }
 
-    // ── HITL pause ────────────────────────────────────────────────
     if (hitlPending.length > 0) {
-      // Push the non-HITL results we already processed
       for (const result of processedResults) {
         history.push({
           role: "tool",
@@ -752,14 +660,13 @@ async function _runLoop(
         history,
         agent: activeAgent,
         _remainingToolCalls: hitlPending,
-        _processedResults: [], // Already pushed above
+        _processedResults: [],
         _stepCount: stepCount,
         _maxSteps: maxSteps,
         _chatOptions: chatOptions,
       };
     }
 
-    // ── Push remaining tool results into history ──────────────────
     for (const result of processedResults) {
       history.push({
         role: "tool",
@@ -778,17 +685,13 @@ async function _runLoop(
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-//  _executeTool() — Shared tool execution with guardrails
-// ═══════════════════════════════════════════════════════════════════════
-
+// Executes an individual tool with prepended and postposed guardrail checks.
 async function _executeTool(
   tool: IToolOptions,
   args: unknown,
   toolName: string,
   agent: Agent
 ): Promise<{ content: string; isError: boolean; rawResult?: unknown }> {
-  // ── beforeTool guardrail ──
   let effectiveArgs = args;
   if (agent.hooks.beforeTool) {
     try {
@@ -810,7 +713,6 @@ async function _executeTool(
   try {
     rawResult = await tool.execute(effectiveArgs);
 
-    // Handoff detection
     if (isHandoffResult(rawResult)) {
       return {
         content: `[Handoff] Control transferred to agent: "${rawResult.targetAgent.name}".`,
@@ -819,7 +721,6 @@ async function _executeTool(
       };
     }
 
-    // Standardized ToolResult handling
     if (isToolResult(rawResult)) {
       if (rawResult.success) {
         content =
@@ -842,7 +743,6 @@ async function _executeTool(
     isError = true;
   }
 
-  // ── afterTool guardrail ──
   if (agent.hooks.afterTool) {
     try {
       const modified = await agent.hooks.afterTool(toolName, content, isError);
@@ -857,10 +757,7 @@ async function _executeTool(
   return { content, isError, rawResult };
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-//  Helpers
-// ═══════════════════════════════════════════════════════════════════════
-
+// Retrieves all active tools for the agent, including structured output tool injections.
 function _getEffectiveTools(agent: Agent): IToolOptions[] {
   const tools = [...agent.tools];
   if (agent.outputType) {

@@ -3,7 +3,9 @@ import type { AIResponse } from "../provider.js";
 import type { CanonicalMessage } from "../../types/message.js";
 import z from "zod";
 
+// Maps canonical models and messages to and from Claude API formats.
 export class ClaudeMapper {
+  // Maps a list of Stark-Kit tools to Claude API tool definitions.
   static mapTools(tools: IToolOptions[]): any[] {
     return tools.map((tool) => {
       const jsonSchema = z.toJSONSchema(tool.parameters as any) as any;
@@ -25,6 +27,7 @@ export class ClaudeMapper {
     });
   }
 
+  // Maps canonical message history into Claude's native system prompt and messages arrays.
   static toClaudeMessages(history: CanonicalMessage[]): { system?: string; messages: any[] } {
     let system: string | undefined;
     const claudeMessages: any[] = [];
@@ -42,7 +45,6 @@ export class ClaudeMapper {
             {
               type: "tool_result",
               tool_use_id: msg.result.toolCallId,
-              // Claude strictly requires tool_result content to be a string
               content: typeof msg.result.content === "string" 
                 ? msg.result.content 
                 : JSON.stringify(msg.result.content ?? ""),
@@ -71,7 +73,6 @@ export class ClaudeMapper {
 
       claudeMessages.push({
         role: msg.role === "user" ? "user" : "assistant",
-        // Fallback to " " to prevent Anthropic 400 error for empty strings/null
         content: msg.content || " ", 
       });
     }
@@ -79,6 +80,7 @@ export class ClaudeMapper {
     return { system, messages: claudeMessages };
   }
 
+  // Normalizes a Claude API response back to a canonical AIResponse.
   static fromClaudeResponse(response: any): AIResponse {
     let content = "";
     const toolCalls: { id: string; name: string; args: unknown }[] = [];
