@@ -21,7 +21,7 @@ const STRUCTURED_OUTPUT_CODE = `import "dotenv/config";
 import { Agent, run, OpenAIProvider } from "@mehularora/stark-kit";
 import z from "zod";
 
-const provider = new OpenAIProvider();
+const provider = new OpenAIProvider({ model: "gpt-4o" });
 
 // Define the exact shape of the response you want
 const FeedbackSchema = z.object({

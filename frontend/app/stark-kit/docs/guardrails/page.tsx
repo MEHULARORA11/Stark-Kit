@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 const HOOKS_CODE = `import "dotenv/config";
 import { Agent, ClaudeProvider } from "@mehularora/stark-kit";
 
-const provider = new ClaudeProvider();
+const provider = new ClaudeProvider({ model: "claude-3-5-sonnet-latest" });
 
 const agent = new Agent({
   name: "SecureAgent",

@@ -75,7 +75,7 @@ const agent = new Agent({
   tools: [searchTool],
   maxSteps: 15,           // stop after 15 steps (default: 10)
   temperature: 0.3,       // lower = more deterministic
-  model: "gpt-4o-mini",   // overrides provider default for this agent
+  model: "gpt-4o-mini",   // overrides the model set on the provider for this agent
 });`;
 
 const RUN_CODE = `import { run, isHITLPause } from "@mehularora/stark-kit";
@@ -124,7 +124,7 @@ for await (const event of stream) {
 
     case "handoff":
       // Only emitted during multi-agent handoffs
-      console.log(\`[Handing off to: \${event.targetAgentName}]\`);
+      console.log(\`[Handing off to: \${event.toAgent}]\`);
       break;
 
     case "step_complete":
@@ -133,7 +133,7 @@ for await (const event of stream) {
 
     case "hitl_pause":
       // A tool with requiresApproval triggered mid-stream
-      console.log("Paused for approval:", event.result.pendingToolCalls);
+      console.log("Paused for approval:", event.pause.pendingToolCalls);
       break;
 
     case "done":
@@ -191,7 +191,7 @@ export default function FirstAgentPage() {
             ["tools", "IToolOptions[]", "Optional. Array of tools defined with defineTool()."],
             ["maxSteps", "number", "Optional (default: 10). Maximum number of run loop iterations."],
             ["temperature", "number", "Optional. Sampling temperature passed to the provider."],
-            ["model", "string", "Optional. Model name that overrides the provider's default."],
+            ["model", "string", "Optional. Overrides the model set on the provider for this specific agent. If neither agent nor provider has a model, an error is thrown."],
             ["hooks", "AgentHooks", "Optional. beforeChat, beforeTool, afterTool lifecycle callbacks."],
             ["outputType", "z.ZodType", "Optional. A Zod schema that forces structured JSON output."],
           ].map(([prop, type, desc]) => (

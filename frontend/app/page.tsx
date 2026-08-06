@@ -34,7 +34,7 @@ const BASIC_AGENT_CODE = `import "dotenv/config";
 import { Agent, run, defineTool, ClaudeProvider } from "@mehularora/stark-kit";
 import z from "zod";
 
-const provider = new ClaudeProvider();
+const provider = new ClaudeProvider({ model: "claude-3-5-sonnet-latest" });
 
 const weatherTool = defineTool({
   name: "getWeather",
@@ -100,10 +100,10 @@ const features = [
 ];
 
 const providers = [
-  { name: "OpenAI", key: "OPENAI_API_KEY", model: "gpt-4o", color: "text-emerald-600 dark:text-emerald-400" },
-  { name: "Claude", key: "ANTHROPIC_API_KEY", model: "claude-3-5-sonnet-latest", color: "text-orange-600 dark:text-orange-400" },
-  { name: "Gemini", key: "GEMINI_API_KEY", model: "gemini-1.5-flash", color: "text-blue-600 dark:text-blue-400" },
-  { name: "Mistral", key: "MISTRAL_API_KEY", model: "mistral-large-latest", color: "text-purple-600 dark:text-purple-400" },
+  { name: "OpenAI", key: "OPENAI_API_KEY", color: "text-emerald-600 dark:text-emerald-400" },
+  { name: "Claude", key: "ANTHROPIC_API_KEY", color: "text-orange-600 dark:text-orange-400" },
+  { name: "Gemini", key: "GEMINI_API_KEY", color: "text-blue-600 dark:text-blue-400" },
+  { name: "Mistral", key: "MISTRAL_API_KEY", color: "text-purple-600 dark:text-purple-400" },
 ];
 
 export default function LandingPage() {
@@ -209,7 +209,7 @@ export default function LandingPage() {
 
         {/* ── Install + Code preview ── */}
         <section className="border-b border-border py-16 sm:py-20">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="grid gap-6 lg:grid-cols-[auto_1fr] lg:gap-10">
               {/* Install */}
               <div className="space-y-4 min-w-0">
@@ -281,8 +281,7 @@ export default function LandingPage() {
                   <tr className="border-b border-border bg-muted/50">
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Provider</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Adapter Class</th>
-                    <th className="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell">Env Variable</th>
-                    <th className="hidden px-4 py-3 text-left font-medium text-muted-foreground lg:table-cell">Default Model</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Env Variable</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -295,11 +294,8 @@ export default function LandingPage() {
                       <td className="px-4 py-3 font-mono text-xs text-foreground">
                         {p.name === "Claude" ? "ClaudeProvider" : `${p.name}Provider`}
                       </td>
-                      <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground sm:table-cell">
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                         {p.key}
-                      </td>
-                      <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground lg:table-cell">
-                        {p.model}
                       </td>
                     </tr>
                   ))}

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const HANDOFF_CODE = `import "dotenv/config";
 import { Agent, run, createHandoffTool, MistralProvider } from "@mehularora/stark-kit";
 
-const provider = new MistralProvider();
+const provider = new MistralProvider({ model: "mistral-large-latest" });
 
 // Specialised downstream agents
 const billingAgent = new Agent({
@@ -63,7 +63,7 @@ console.log(response.content);       // The final answer text`;
 const HOOKS_CODE = `import "dotenv/config";
 import { Agent, ClaudeProvider } from "@mehularora/stark-kit";
 
-const provider = new ClaudeProvider();
+const provider = new ClaudeProvider({ model: "claude-3-5-sonnet-latest" });
 
 const agent = new Agent({
   name: "SecureAgent",
@@ -116,7 +116,7 @@ const STRUCTURED_OUTPUT_CODE = `import "dotenv/config";
 import { Agent, run, OpenAIProvider } from "@mehularora/stark-kit";
 import z from "zod";
 
-const provider = new OpenAIProvider();
+const provider = new OpenAIProvider({ model: "gpt-4o" });
 
 // Define the exact shape of the response you want
 const FeedbackSchema = z.object({

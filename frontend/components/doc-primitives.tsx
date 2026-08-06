@@ -9,7 +9,7 @@ export function DocPage({ children, className }: DocPageProps) {
   return (
     <article
       className={cn(
-        "mx-auto w-full min-w-0 max-w-3xl overflow-hidden px-4 py-10 sm:px-6 sm:py-14",
+        "mx-auto w-full min-w-0 max-w-4xl px-4 py-10 sm:px-6 sm:py-14",
         className
       )}
     >

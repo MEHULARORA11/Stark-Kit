@@ -57,28 +57,24 @@ const providers = [
     name: "OpenAI",
     adapter: "OpenAIProvider",
     env: "OPENAI_API_KEY",
-    default: "gpt-4o",
     import: "{ OpenAIProvider }",
   },
   {
     name: "Anthropic",
     adapter: "ClaudeProvider",
     env: "ANTHROPIC_API_KEY",
-    default: "claude-3-5-sonnet-latest",
     import: "{ ClaudeProvider }",
   },
   {
     name: "Google",
     adapter: "GeminiProvider",
     env: "GEMINI_API_KEY",
-    default: "gemini-1.5-flash",
     import: "{ GeminiProvider }",
   },
   {
     name: "Mistral",
     adapter: "MistralProvider",
     env: "MISTRAL_API_KEY",
-    default: "mistral-large-latest",
     import: "{ MistralProvider }",
   },
 ];
@@ -141,7 +137,6 @@ export default function InstallationPage() {
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Provider</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Adapter Class</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Env Variable</th>
-              <th className="hidden px-4 py-3 text-left font-medium text-muted-foreground lg:table-cell">Default Model</th>
             </tr>
           </thead>
           <tbody>
@@ -150,20 +145,19 @@ export default function InstallationPage() {
                 <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
                 <td className="px-4 py-3 font-mono text-xs text-foreground">{p.adapter}</td>
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.env}</td>
-                <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground lg:table-cell">
-                  {p.default}
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <DocH2>Overriding the Model</DocH2>
+      <DocH2>Specifying the Model</DocH2>
       <DocP>
-        All four adapters accept an optional <InlineCode>model</InlineCode> option in their
-        constructor. You can also override the model per-run by passing it to{" "}
-        <InlineCode>run()</InlineCode> or <InlineCode>runStream()</InlineCode>.
+        All four adapters require a <InlineCode>model</InlineCode> to be specified — there is no
+        built-in default. Pass it to the provider constructor, or override it per-agent via{" "}
+        <InlineCode>Agent.model</InlineCode>, or per-run by passing it to{" "}
+        <InlineCode>run()</InlineCode> or <InlineCode>runStream()</InlineCode>. If no model is
+        available at call time, the provider throws an error.
       </DocP>
       <CodeBlock className="mt-4" code={CUSTOM_PROVIDER} language="typescript" filename="providers.ts" />
 

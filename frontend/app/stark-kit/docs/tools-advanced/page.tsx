@@ -40,7 +40,7 @@ const dbQueryTool = defineTool({
 
 const HANDOFF_CODE = `import { Agent, run, createHandoffTool, MistralProvider } from "@mehularora/stark-kit";
 
-const provider = new MistralProvider();
+const provider = new MistralProvider({ model: "mistral-large-latest" });
 
 // Specialized downstream agent
 const billingAgent = new Agent({

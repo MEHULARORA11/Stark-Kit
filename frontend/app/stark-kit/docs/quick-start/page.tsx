@@ -28,7 +28,7 @@ import { Agent, run, defineTool, ClaudeProvider } from "@mehularora/stark-kit";
 import z from "zod";
 
 // Initialize a provider — reads ANTHROPIC_API_KEY automatically
-const provider = new ClaudeProvider();
+const provider = new ClaudeProvider({ model: "claude-3-5-sonnet-latest" });
 
 // Define a typed tool
 const weatherTool = defineTool({

@@ -21,7 +21,7 @@ const DEFINE_TOOL_CODE = `import "dotenv/config";
 import { defineTool, Agent, run, isHITLPause, resumeRun, GeminiProvider } from "@mehularora/stark-kit";
 import z from "zod";
 
-const provider = new GeminiProvider();
+const provider = new GeminiProvider({ model: "gemini-1.5-flash" });
 
 // Mark this tool as requiring approval before it executes
 const sendEmailTool = defineTool({
@@ -190,7 +190,7 @@ export default function HITLPage() {
       <DocCallout type="tip">
         HITL works seamlessly with <InlineCode>runStream()</InlineCode> too. The stream emits a{" "}
         <InlineCode>hitl_pause</InlineCode> event instead of stopping silently — inspect{" "}
-        <InlineCode>event.result</InlineCode> (a <InlineCode>HITLPause</InlineCode>) and call{" "}
+        <InlineCode>event.pause</InlineCode> (a <InlineCode>HITLPause</InlineCode>) and call{" "}
         <InlineCode>resumeRun()</InlineCode> on it.
       </DocCallout>
     </DocPage>
